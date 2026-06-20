@@ -1,4 +1,17 @@
+<div align="center">
+
 # AI Canvas Codex Plugin
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![Codex Plugin](https://img.shields.io/badge/Codex-Plugin-111827)](./.codex-plugin/plugin.json)
+[![MCP](https://img.shields.io/badge/MCP-Tools-2563eb)](./.mcp.json)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933)](./package.json)
+[![lang](https://img.shields.io/badge/lang-中文-dc2626)](./使用说明.md)
+[![lang](https://img.shields.io/badge/lang-English-0284c7)](./README.md)
+
+[Install](./INSTALL.md) · [User Guide](./使用说明.md) · [Workflow](./自然语言工作流.md)
+
+</div>
 
 AI Canvas is a Codex plugin that gives Codex a local infinite canvas for image generation, visual annotation, and iterative image editing.
 

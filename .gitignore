@@ -3,6 +3,7 @@
 .env.*
 *.log
 *.tsbuildinfo
+AI无限画布制图工作流产品开发文档.md
 
 node_modules/
 tmp/
