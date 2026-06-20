@@ -5,51 +5,59 @@
 ### Codex 里的 AI 无限画布：自然语言生成图片，在画布上标注，再自动生成新版
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Codex Plugin](https://img.shields.io/badge/Codex-Plugin-111827)](#install)
+[![Codex Plugin](https://img.shields.io/badge/Codex-Plugin-111827)](#快速安装)
 [![MCP](https://img.shields.io/badge/MCP-Tools-2563eb)](./ai-canvas-codex-plugin/.mcp.json)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933)](./ai-canvas-codex-plugin/package.json)
 [![pnpm](https://img.shields.io/badge/pnpm-10.13.1-f69220)](./ai-canvas-codex-plugin/package.json)
-[![lang](https://img.shields.io/badge/lang-中文-dc2626)](./ai-canvas-codex-plugin/使用说明.md)
-[![lang](https://img.shields.io/badge/lang-English-0284c7)](./ai-canvas-codex-plugin/README.md)
+[![中文](https://img.shields.io/badge/lang-中文-dc2626)](./README.md)
+[![English](https://img.shields.io/badge/lang-English-0284c7)](./README.en.md)
 
-[快速安装](#install) · [使用流程](#workflow) · [适合谁用](#use-cases) · [文档](#docs) · [隐私说明](#privacy)
+**中文** · [English](./README.en.md)
+
+[快速安装](#快速安装) · [使用流程](#使用流程) · [适合谁用](#适合谁用) · [项目文档](#项目文档) · [隐私说明](#隐私说明)
 
 </div>
 
 ---
 
-## What Is AI Canvas?
-
-AI Canvas is a Codex plugin marketplace that adds a local infinite canvas for image generation, visual annotation, and iterative image editing.
+## 这是什么？
 
 AI Canvas 是一个 Codex 插件 marketplace。它让 Codex 可以打开本地无限画布，生成图片，读取你在画布上的箭头、文字、圈选标注，并把修改后的新版本自动放到旧图右侧。
 
-## Highlights
+你可以把它理解成：
 
-| Capability | English | 中文 |
-| --- | --- | --- |
-| Natural prompt to image | Ask Codex for an ad, cover, poster, product image, or visual concept. | 直接让 Codex 做广告图、封面、海报、产品图或视觉概念图。 |
-| Local infinite canvas | Uses a local tldraw-based canvas opened from Codex. | 使用本地 tldraw 无限画布。 |
-| Visual annotation editing | Arrows, text, circles, and rectangles become edit instructions. | 箭头、文字、圆圈、矩形会被理解成修图意见。 |
-| Versioned iteration | New edited images are placed to the right; originals stay unchanged. | 新版放右侧，旧图保留，方便对比。 |
-| Codex MCP tools | The plugin exposes MCP tools plus Codex skills for natural-language workflows. | 插件包含 MCP 工具和 Codex 技能，普通用户不用理解工具细节。 |
+```text
+Codex 里的 AI 画图白板。
+```
 
-## Install
+普通用户不需要理解 MCP、holder、run metadata 或本地文件路径。你只需要说需求、打开画布、标注修改意见、点击按钮。
 
-### Recommended: Install Directly From GitHub
+## 核心能力
+
+| 能力 | 说明 |
+| --- | --- |
+| 自然语言生成图片 | 让 Codex 直接生成广告图、封面、海报、产品图或视觉概念图。 |
+| 本地无限画布 | 打开基于 tldraw 的本地画布，适合持续标注和对比版本。 |
+| 标注驱动修图 | 箭头、文字、圆圈、矩形会被理解成修图意见。 |
+| 保留历史版本 | 新版图片放在右侧，旧图保留，方便对比。 |
+| Codex 插件工作流 | 内置 MCP 工具和 Codex skills，用户用自然语言即可操作。 |
+
+## 快速安装
+
+### 推荐方式：直接从 GitHub 安装
 
 ```bash
 codex plugin marketplace add https://github.com/binghe1980/AI-Canvas --ref main
 codex plugin add ai-canvas-codex-plugin@ai-canvas
 ```
 
-Then restart Codex or open a new chat, and try:
+安装后重启 Codex，或新开一个对话，然后输入：
 
 ```text
 @AI Canvas 打开 AI 画布，帮我做一张拉面广告。
 ```
 
-### Local Development Install
+### 开发者本地安装
 
 ```bash
 git clone https://github.com/binghe1980/AI-Canvas.git
@@ -60,34 +68,34 @@ codex plugin marketplace add .
 codex plugin add ai-canvas-codex-plugin@ai-canvas
 ```
 
-Full installation guide:
+完整安装、更新和排错说明：
 
-- [INSTALL.md](./ai-canvas-codex-plugin/INSTALL.md)
+- [安装指南 INSTALL.md](./ai-canvas-codex-plugin/INSTALL.md)
 
-## Workflow
+## 使用流程
 
 ```mermaid
 flowchart LR
-  A["User asks Codex<br/>生成一张广告图"] --> B["AI Canvas opens<br/>local canvas"]
-  B --> C["Codex creates holder<br/>and generates image"]
-  C --> D["Image inserted<br/>into canvas"]
-  D --> E["User annotates<br/>arrows + text + circles"]
-  E --> F["Click 按标注修图"]
-  F --> G["Codex reads annotations<br/>and edits image"]
-  G --> H["New version placed<br/>to the right"]
+  A["告诉 Codex<br/>生成一张广告图"] --> B["AI Canvas 打开<br/>本地画布"]
+  B --> C["Codex 创建图片框<br/>并生成图片"]
+  C --> D["图片插入画布"]
+  D --> E["用户画标注<br/>箭头 + 文字 + 圈选"]
+  E --> F["点击<br/>按标注修图"]
+  F --> G["Codex 读取标注<br/>并编辑图片"]
+  G --> H["新版放到右侧<br/>旧图保留"]
   H --> E
 ```
 
-Daily use in one minute:
+一分钟日常使用：
 
-1. Tell Codex what image you want.
-2. Open the returned local canvas link.
-3. Mark changes on the image with arrows, text, circles, or rectangles.
-4. Say `@AI Canvas 开启自动修图模式`.
-5. Click `按标注修图` on the canvas after each batch of annotations.
-6. Compare the original and new version side by side.
+1. 在 Codex 里说你想要什么图。
+2. 打开 Codex 返回的本地画布链接。
+3. 在图片上画箭头、写文字、圈出区域。
+4. 第一次改图前说：`@AI Canvas 开启自动修图模式`。
+5. 每批标注完成后，在画布上点 `按标注修图`。
+6. 在画布上对比旧版和新版，继续迭代。
 
-## Example Prompts
+## 常用提示词
 
 ```text
 @AI Canvas 打开 AI 画布，帮我做一张小红书封面。
@@ -99,24 +107,25 @@ Daily use in one minute:
 @AI Canvas 按我画布上的标注修改。
 ```
 
-## Use Cases
+## 适合谁用
 
-| Scenario | What AI Canvas Helps With |
+| 场景 | AI Canvas 能帮你做什么 |
 | --- | --- |
-| Social covers | 小红书封面、短视频封面、活动海报 |
-| Ads and banners | Product ads, food ads, campaign visuals |
-| Product concepts | Visual moodboards, packaging directions, hero images |
-| Iterative editing | Mark a region, ask for changes, keep every version |
-| Design review | Use the canvas as a shared visual thinking surface inside Codex |
+| 社媒封面 | 小红书封面、短视频封面、活动海报 |
+| 广告物料 | 食物广告、产品广告、活动 banner、主视觉 |
+| 产品概念 | 情绪板、包装方向、视觉草案、hero 图 |
+| 反复修图 | 标一个区域，生成一版，保留旧图继续对比 |
+| 视觉评审 | 把画布当成 Codex 里的视觉讨论工作台 |
 
-## Docs
+## 项目文档
 
-- [Plugin README](./ai-canvas-codex-plugin/README.md)
-- [Installation Guide / 安装指南](./ai-canvas-codex-plugin/INSTALL.md)
+- [插件说明 README](./ai-canvas-codex-plugin/README.md)
+- [安装指南 / Installation Guide](./ai-canvas-codex-plugin/INSTALL.md)
 - [中文小白使用说明](./ai-canvas-codex-plugin/使用说明.md)
 - [自然语言工作流](./ai-canvas-codex-plugin/自然语言工作流.md)
+- [English README](./README.en.md)
 
-## Repository Layout
+## 仓库结构
 
 ```text
 .agents/plugins/marketplace.json
@@ -130,16 +139,16 @@ ai-canvas-codex-plugin/
     shared/
 ```
 
-Codex reads `.agents/plugins/marketplace.json` from this repository root. The marketplace points to `./ai-canvas-codex-plugin`.
+Codex 会读取仓库根目录的 `.agents/plugins/marketplace.json`，这个 marketplace 指向 `./ai-canvas-codex-plugin`。
 
-## Privacy
+## 隐私说明
 
-- The canvas service runs locally on `127.0.0.1`, default port `43218`.
-- Canvas state and generated assets are stored locally under `.ai-canvas/` in the active workspace unless `AI_CANVAS_HOME` is set.
-- Local runtime data, temporary QA data, dependency folders, logs, and environment files are ignored by Git.
-- The plugin does not include a hosted backend. It is a local Codex plugin workflow.
+- 画布服务运行在本机 `127.0.0.1`，默认端口 `43218`。
+- 画布状态和生成资源默认保存在当前工作区的 `.ai-canvas/`，除非设置了 `AI_CANVAS_HOME`。
+- 本地运行数据、临时 QA 数据、依赖目录、日志和环境变量文件都被 Git 忽略。
+- 插件不包含托管后端，它是一个本地 Codex 插件工作流。
 
-## Development
+## 开发
 
 ```bash
 cd ai-canvas-codex-plugin
@@ -149,7 +158,7 @@ npm run test
 npm run validate:plugin
 ```
 
-Manual preview:
+手动预览画布服务：
 
 ```bash
 NODE_ENV=production node packages/canvas-app/dist/server/server.js \
@@ -157,12 +166,12 @@ NODE_ENV=production node packages/canvas-app/dist/server/server.js \
   --workspace-root "<your workspace>"
 ```
 
-Open:
+打开：
 
 ```text
 http://127.0.0.1:43218/
 ```
 
-## License
+## 许可证
 
 MIT. See [LICENSE](./LICENSE).
