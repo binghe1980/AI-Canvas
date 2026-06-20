@@ -1,0 +1,38 @@
+{
+  "name": "ai-canvas-codex-plugin",
+  "version": "0.1.0+codex.20260620172346",
+  "description": "Codex-integrated infinite canvas for image generation, visual annotation, and iterative editing.",
+  "author": {
+    "name": "AI Canvas contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "plugin",
+    "mcp",
+    "ai-canvas",
+    "image-generation",
+    "image-editing",
+    "annotation"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AI Canvas",
+    "shortDescription": "Create and revise images from natural language on an infinite canvas.",
+    "longDescription": "AI Canvas lets users ask Codex to open a canvas, generate images, read visual annotations, and place edited versions without dealing with MCP tools or file plumbing.",
+    "developerName": "AI Canvas contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write",
+      "MCP",
+      "Skills"
+    ],
+    "defaultPrompt": [
+      "\u6253\u5f00 AI \u753b\u5e03\uff0c\u5e2e\u6211\u751f\u6210\u4e00\u5f20\u56fe\u7247\u3002",
+      "\u5f00\u542f\u81ea\u52a8\u4fee\u56fe\u6a21\u5f0f\u3002",
+      "\u6309\u6211\u753b\u5e03\u4e0a\u7684\u6807\u6ce8\u4fee\u6539\u3002"
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

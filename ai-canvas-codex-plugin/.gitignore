@@ -1,0 +1,11 @@
+node_modules/
+*.tsbuildinfo
+tmp/
+.ai-canvas/
+.DS_Store
+.env
+.env.*
+*.log
+
+# Keep package dist files trackable for Git marketplace installs.
+# Without these bundles, users must run `npm run setup` before installing.

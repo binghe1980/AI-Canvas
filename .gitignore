@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.env.*
+*.log
+*.tsbuildinfo
+
+node_modules/
+tmp/
+.ai-canvas/
+
+**/node_modules/
+**/tmp/
+**/.ai-canvas/
+**/*.tsbuildinfo
+
+# Keep ai-canvas-codex-plugin/packages/*/dist trackable for Codex Git marketplace installs.

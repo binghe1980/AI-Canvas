@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ai-canvas": {
+      "command": "node",
+      "args": ["packages/mcp-server/dist/index.js"],
+      "cwd": ".",
+      "env": {
+        "AI_CANVAS_PORT": "43218"
+      }
+    }
+  }
+}

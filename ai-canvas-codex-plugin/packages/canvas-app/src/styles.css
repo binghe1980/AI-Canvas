@@ -1,0 +1,394 @@
+:root {
+  color-scheme: light;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #eef1f4;
+  color: #1d2430;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1024px;
+  min-height: 720px;
+  overflow: hidden;
+  background: #eef1f4;
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr) 312px;
+  grid-template-rows: 48px minmax(0, 1fr) 30px;
+  width: 100vw;
+  height: 100vh;
+  background: #eef1f4;
+}
+
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid #d9dee7;
+  background: #fbfcfd;
+}
+
+.brand,
+.save-status,
+.topbar-button,
+.statusbar-command {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.brand {
+  width: 220px;
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.canvas-title {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.canvas-title strong {
+  font-size: 13px;
+}
+
+.canvas-title span {
+  overflow: hidden;
+  color: #697386;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.save-status {
+  border: 1px solid #cfd7e3;
+  border-radius: 6px;
+  padding: 5px 9px;
+  color: #455468;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.save-status--saved,
+.save-status--connected {
+  color: #067647;
+}
+
+.save-status--error {
+  color: #b42318;
+}
+
+.topbar-button,
+.action,
+.primary-action,
+.row {
+  border: 1px solid #d5dbe5;
+  border-radius: 7px;
+  color: #1d2430;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.topbar-button {
+  height: 31px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.sidebar {
+  min-width: 0;
+  overflow: auto;
+  padding: 14px;
+  background: #f7f8fa;
+}
+
+.sidebar-left {
+  border-right: 1px solid #d9dee7;
+}
+
+.sidebar-right {
+  border-left: 1px solid #d9dee7;
+}
+
+.sidebar section + section {
+  margin-top: 20px;
+}
+
+.sidebar h2 {
+  margin: 0 0 9px;
+  color: #697386;
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.row {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 10px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.row-active {
+  border-color: #9bbcf9;
+  background: #eef5ff;
+  color: #1d4ed8;
+}
+
+.empty,
+.path-text,
+.error-text {
+  margin: 0;
+  color: #697386;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.error-text {
+  margin-top: 8px;
+  color: #b42318;
+}
+
+.version-chain {
+  min-height: 34px;
+  color: #455468;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.canvas-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background:
+    linear-gradient(#e8ebf0 1px, transparent 1px),
+    linear-gradient(90deg, #e8ebf0 1px, transparent 1px);
+  background-color: #f2f4f7;
+  background-size: 22px 22px;
+}
+
+.canvas-frame {
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+}
+
+.floating-toolbar {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  transform: translateX(-50%);
+  border: 1px solid #d5dbe5;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.14);
+}
+
+.floating-toolbar button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: #344054;
+  background: transparent;
+  cursor: pointer;
+}
+
+.floating-toolbar button:hover {
+  background: #eef5ff;
+  color: #1d4ed8;
+}
+
+.primary-action,
+.action {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.primary-action {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.listener-card {
+  display: flex;
+  min-height: 58px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #d5dbe5;
+  border-radius: 7px;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  background: #ffffff;
+}
+
+.listener-card strong {
+  color: #1d2430;
+  font-size: 12px;
+}
+
+.listener-card span {
+  color: #697386;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.listener-card--active {
+  border-color: #abefc6;
+  background: #f6fef9;
+}
+
+.listener-card--active strong {
+  color: #067647;
+}
+
+.listener-card--busy {
+  border-color: #b2ccff;
+  background: #f5f8ff;
+}
+
+.listener-card--busy strong {
+  color: #1d4ed8;
+}
+
+.listener-card--paused {
+  border-color: #fedf89;
+  background: #fffcf5;
+}
+
+.listener-card--paused strong {
+  color: #b54708;
+}
+
+.advanced-actions {
+  margin-top: 2px;
+}
+
+.advanced-actions summary {
+  cursor: pointer;
+  color: #697386;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.advanced-actions .action {
+  margin-top: 6px;
+}
+
+.metadata-card {
+  border: 1px solid #d5dbe5;
+  border-radius: 7px;
+  margin-bottom: 8px;
+  padding: 9px;
+  background: #ffffff;
+}
+
+.metadata-card div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.metadata-card strong {
+  font-size: 12px;
+}
+
+.metadata-card span,
+.metadata-card code {
+  overflow: hidden;
+  color: #697386;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.json-preview {
+  overflow: auto;
+  max-height: 150px;
+  border: 1px solid #d5dbe5;
+  border-radius: 7px;
+  margin: 0;
+  padding: 10px;
+  color: #344054;
+  background: #ffffff;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.path-text {
+  overflow-wrap: anywhere;
+}
+
+.statusbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 30px;
+  padding: 0 12px;
+  border-top: 1px solid #d9dee7;
+  color: #697386;
+  background: #fbfcfd;
+  font-size: 11px;
+}
+
+.statusbar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+@media (max-width: 1180px) {
+  body {
+    min-width: 0;
+  }
+
+  .app-shell {
+    grid-template-columns: 196px minmax(0, 1fr) 260px;
+  }
+
+  .brand {
+    width: 170px;
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "ai-canvas-codex-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codex-integrated infinite canvas for image generation, visual annotation, and iterative editing.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.13.1",
+  "scripts": {
+    "build": "npx --yes pnpm@10.13.1 -r --filter @ai-canvas/shared --filter @ai-canvas/canvas-app --filter @ai-canvas/mcp-server build",
+    "dev:canvas": "npx --yes pnpm@10.13.1 --filter @ai-canvas/shared build && npx --yes pnpm@10.13.1 --filter @ai-canvas/canvas-app dev:service",
+    "setup": "node scripts/setup.mjs",
+    "typecheck": "npx --yes pnpm@10.13.1 --filter @ai-canvas/shared build && npx --yes pnpm@10.13.1 -r --filter @ai-canvas/canvas-app --filter @ai-canvas/mcp-server typecheck",
+    "test": "npx --yes pnpm@10.13.1 --filter @ai-canvas/mcp-server test",
+    "validate:plugin": "node scripts/validate-plugin.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}
