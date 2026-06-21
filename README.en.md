@@ -14,7 +14,7 @@
 
 [中文](./README.md) · **English**
 
-[Install](#install) · [Workflow](#workflow) · [Use Cases](#use-cases) · [Docs](#docs) · [Privacy](#privacy)
+[Install](#install) · [Interface Preview](#interface-preview) · [Workflow](#workflow) · [Use Cases](#use-cases) · [Docs](#docs) · [Privacy](#privacy)
 
 </div>
 
@@ -31,6 +31,12 @@ An AI drawing whiteboard inside Codex.
 ```
 
 Users do not need to understand MCP tools, holder IDs, run metadata, or local file paths. Ask for an image, open the canvas, annotate changes, and click the edit button.
+
+## Interface Preview
+
+<div align="center">
+  <img src="./assets/ai-canvas-interface-preview.png" alt="AI Canvas interface preview showing Codex conversation and the local canvas working together" width="100%">
+</div>
 
 ## Highlights
 
