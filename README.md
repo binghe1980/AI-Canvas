@@ -1,5 +1,7 @@
 <div align="center">
 
+  <img src="./assets/readme-hero-light.jpg" alt="AI Canvas 顶部主题配图" width="100%">
+
 # AI Canvas
 
 ### Codex 里的 AI 无限画布：生成图片、标注修图、Skill 工作流一次完成

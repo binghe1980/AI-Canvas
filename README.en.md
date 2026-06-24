@@ -1,5 +1,7 @@
 <div align="center">
 
+  <img src="./assets/readme-hero-light.jpg" alt="AI Canvas README hero banner" width="100%">
+
 # AI Canvas
 
 ### An AI infinite canvas for Codex: generate images, annotate edits, and run business design Skills.
