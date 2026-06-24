@@ -2,7 +2,7 @@
 
 # AI Canvas
 
-### An AI infinite canvas for Codex: generate images, annotate visually, and create revised versions.
+### An AI infinite canvas for Codex: generate images, annotate edits, and run business design Skills.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Codex Plugin](https://img.shields.io/badge/Codex-Plugin-111827)](#install)
@@ -14,7 +14,7 @@
 
 [中文](./README.md) · **English**
 
-[Install](#install) · [Interface Preview](#interface-preview) · [Workflow](#workflow) · [Use Cases](#use-cases) · [Docs](#docs) · [Privacy](#privacy)
+[Install](#install) · [Interface Preview](#interface-preview) · [Highlights](#highlights) · [Skill Workflows](#skill-workflows) · [Workflow](#workflow) · [Privacy](#privacy)
 
 </div>
 
@@ -22,15 +22,15 @@
 
 ## What Is AI Canvas?
 
-AI Canvas is a Codex plugin marketplace that adds a local infinite canvas for image generation, visual annotation, and iterative image editing.
+AI Canvas is a local AI canvas plugin for Codex. It combines prompt-to-image generation, visual annotation editing, one-click business Skills, and side-by-side version comparison in one workflow.
 
 Think of it as:
 
 ```text
-An AI drawing whiteboard inside Codex.
+An AI drawing whiteboard plus a business image production desk inside Codex.
 ```
 
-Users do not need to understand MCP tools, holder IDs, run metadata, or local file paths. Ask for an image, open the canvas, annotate changes, and click the edit button.
+Users do not need to understand MCP tools, holder IDs, run metadata, or local file paths. Ask for an image, open the canvas, select an image, annotate or submit a Skill, and Codex places the result back on the canvas.
 
 ## Interface Preview
 
@@ -42,11 +42,12 @@ Users do not need to understand MCP tools, holder IDs, run metadata, or local fi
 
 | Capability | What It Does |
 | --- | --- |
-| Natural prompt to image | Ask Codex for an ad, cover, poster, product image, or visual concept. |
-| Local infinite canvas | Open a local tldraw-based canvas for annotation and side-by-side version comparison. |
-| Visual annotation editing | Arrows, text, circles, and rectangles become edit instructions. |
-| Versioned iteration | New edited images are placed to the right; originals stay unchanged. |
-| Codex plugin workflow | MCP tools and Codex skills are bundled so users can work in natural language. |
+| Natural prompt to image | Ask Codex for an ad, cover, poster, product image, logo, or visual concept. |
+| Local infinite canvas | Open a local tldraw-based canvas for ongoing annotation, asset layout, and version comparison. |
+| Annotation-based editing | Arrows, text, circles, and rectangles become edit instructions after clicking `按标注修图`. |
+| Skill panel | Built-in Social Media, E Commerce, Branding, Marketing, and Studio Skills. |
+| Multi-image output | Product sets, brand systems, brochures, and platform adaptations can produce multiple images in sequence. |
+| Local-first runtime | The canvas service runs on `127.0.0.1`; runtime data stays under the active workspace by default. |
 
 ## Install
 
@@ -77,29 +78,92 @@ codex plugin add ai-canvas-codex-plugin@ai-canvas
 Full installation, update, and troubleshooting guide:
 
 - [INSTALL.md](./ai-canvas-codex-plugin/INSTALL.md)
+- [Chinese User Guide](./ai-canvas-codex-plugin/使用说明.md)
 
 ## Workflow
 
 ```mermaid
 flowchart LR
-  A["User asks Codex<br/>Generate an ad image"] --> B["AI Canvas opens<br/>local canvas"]
-  B --> C["Codex creates holder<br/>and generates image"]
-  C --> D["Image inserted<br/>into canvas"]
-  D --> E["User annotates<br/>arrows + text + circles"]
-  E --> F["Click 按标注修图"]
-  F --> G["Codex reads annotations<br/>and edits image"]
-  G --> H["New version placed<br/>to the right"]
-  H --> E
+  A["Ask Codex<br/>to open AI Canvas"] --> B["Generate or import image"]
+  B --> C["Select image<br/>on canvas"]
+  C --> D{"Choose path"}
+  D --> E["Draw arrows/circles/text<br/>click annotation edit"]
+  D --> F["Open Skill panel<br/>choose a business Skill"]
+  E --> G["Codex reads request<br/>and generates result"]
+  F --> H["Fill fields<br/>submit to Codex"]
+  H --> G
+  G --> I["Result placed to the right<br/>original stays for comparison"]
 ```
 
-Daily use in one minute:
+Daily use:
 
-1. Tell Codex what image you want.
-2. Open the returned local canvas link.
-3. Mark changes on the image with arrows, text, circles, or rectangles.
-4. Say `@AI Canvas 开启自动修图模式`.
-5. Click `按标注修图` on the canvas after each batch of annotations.
-6. Compare the original and new version side by side, then keep iterating.
+1. In Codex, say: `@AI Canvas 打开 AI 画布`.
+2. Generate an image with Codex, or upload, drag, or paste an image into the canvas.
+3. For local edits, draw arrows, circles, rectangles, and text near the image, then click `按标注修图`.
+4. For business outputs, select an image, open the right-side `Skill 面板`, and choose a Skill.
+5. Before processing Skills for the first time, say: `@AI Canvas 继续处理画布里的 Skill 请求`.
+6. Fill the Skill fields and click `提交给 Codex 生成`; results are placed to the right of the source image.
+
+## Skill Workflows
+
+The current executable loop supports 6 built-in Skills. They are not static templates; each Skill turns the selected image, canvas state, form fields, and extra instructions into Codex generation jobs.
+
+| Category | Skill | Best For | Output |
+| --- | --- | --- | --- |
+| Social Media | Xiaohongshu Cover | Note covers, product recommendation covers, personal-brand posts | Finished 3:4 cover |
+| Social Media | YouTube Thumbnail | Knowledge channels, product videos, tutorials | 16:9 thumbnail |
+| E Commerce | Product Marketing Set | Amazon, Shopify, Meta ads, general ecommerce visuals | Main image, selling-point image, scene image, detail image |
+| Branding | Logo and Brand | New product, app, service, or brand identity exploration | Logo concepts, alternates, brand board |
+| Marketing | Marketing Brochure | Trifold brochure, service brochure, campaign flyer, product brochure | Outer page, inner page, mockup, promo image |
+| Studio | Cross-Platform Adaptation | Publish one visual across multiple social platforms | Xiaohongshu, Instagram, Story/Reels, WeChat, Twitter/X, LinkedIn ratios |
+
+### Xiaohongshu Cover
+
+Select an image, open `Social Media`, and choose `小红书封面`. Fill in content type, title, title style, title placement, and must-preserve elements. Codex outputs a finished 3:4 cover with typography, color, layout, and Chinese title baked into the image.
+
+<div align="center">
+  <img src="./assets/skills/xiaohongshu-cover.png" alt="AI Canvas Xiaohongshu Cover Skill interface" width="100%">
+</div>
+
+### YouTube Thumbnail
+
+Choose `YouTube 封面图` after selecting an image. Enter the video topic, main title, target audience, thumbnail style, title placement, and key elements to preserve. Codex generates a more recognizable 16:9 thumbnail.
+
+<div align="center">
+  <img src="./assets/skills/youtube-thumbnail.png" alt="AI Canvas YouTube Thumbnail Skill interface" width="100%">
+</div>
+
+### Product Marketing Set
+
+In `E Commerce`, choose `产品营销组图`. Generate product visuals for Amazon listing / A+, Shopify, Meta ads, Google display ads, or a general ecommerce set. It turns one product image into a fuller sales visual sequence.
+
+<div align="center">
+  <img src="./assets/skills/product-marketing-set.png" alt="AI Canvas Product Marketing Set Skill interface" width="100%">
+</div>
+
+### Logo And Brand
+
+In `Branding`, choose `Logo 与品牌`. Fill in brand name, industry, target audience, positioning, personality, logo style, and usage contexts. Codex generates logo concepts, alternates, and a brand visual board.
+
+<div align="center">
+  <img src="./assets/skills/logo-and-brand.png" alt="AI Canvas Logo and Brand Skill interface" width="100%">
+</div>
+
+### Marketing Brochure
+
+In `Marketing`, choose `营销宣传册`. It supports trifold brochures, service brochures, campaign flyers, and product brochures, helping turn a campaign, course, service, or product message into multi-page marketing material.
+
+<div align="center">
+  <img src="./assets/skills/marketing-brochure.png" alt="AI Canvas Marketing Brochure Skill interface" width="100%">
+</div>
+
+### Cross-Platform Adaptation
+
+In `Studio`, choose `一键跨平台适配`. Pick target platforms, content type, text policy, must-preserve elements, and background strategy. Codex recomposes the image for platform ratios, safe areas, and usage contexts.
+
+<div align="center">
+  <img src="./assets/skills/cross-platform-adapt.png" alt="AI Canvas Cross-Platform Adaptation Skill interface" width="100%">
+</div>
 
 ## Example Prompts
 
@@ -110,18 +174,20 @@ Daily use in one minute:
 
 @AI Canvas 开启自动修图模式。
 
+@AI Canvas 继续处理画布里的 Skill 请求。
+
 @AI Canvas 按我画布上的标注修改。
 ```
 
 ## Use Cases
 
-| Scenario | What AI Canvas Helps With |
+| User | How AI Canvas Helps |
 | --- | --- |
-| Social covers | Xiaohongshu covers, short-video covers, campaign posters |
-| Ads and banners | Food ads, product ads, campaign banners, hero visuals |
-| Product concepts | Moodboards, packaging directions, visual drafts, hero images |
-| Iterative editing | Mark one region, generate a new version, keep the old image for comparison |
-| Design review | Use the canvas as a visual discussion surface inside Codex |
+| Social creators | Create Xiaohongshu covers, YouTube thumbnails, short-video covers, and cross-platform posts. |
+| Ecommerce sellers | Expand one product image into main images, selling-point visuals, scene images, and ads. |
+| Product and brand teams | Explore logo directions, brand boards, campaign assets, and product concepts. |
+| Design collaboration | Use the canvas as a visual discussion workspace inside Codex. |
+| Non-design users | Produce common business visuals through natural language and simple forms. |
 
 ## Docs
 
@@ -143,6 +209,9 @@ ai-canvas-codex-plugin/
     canvas-app/
     mcp-server/
     shared/
+assets/
+  ai-canvas-interface-preview.png
+  skills/
 ```
 
 Codex reads `.agents/plugins/marketplace.json` from this repository root. The marketplace points to `./ai-canvas-codex-plugin`.
@@ -151,7 +220,7 @@ Codex reads `.agents/plugins/marketplace.json` from this repository root. The ma
 
 - The canvas service runs locally on `127.0.0.1`, default port `43218`.
 - Canvas state and generated assets are stored locally under `.ai-canvas/` in the active workspace unless `AI_CANVAS_HOME` is set.
-- Local runtime data, temporary QA data, dependency folders, logs, and environment files are ignored by Git.
+- Local runtime data, test-generated images, temporary QA data, dependency folders, logs, and environment files are ignored by Git.
 - The plugin does not include a hosted backend. It is a local Codex plugin workflow.
 
 ## Development

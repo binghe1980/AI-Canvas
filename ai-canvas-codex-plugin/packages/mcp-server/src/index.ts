@@ -1,24 +1,38 @@
 import {
+  applyCanvasActionsInputSchema,
   collectAnnotationsInputSchema,
   createImageHolderInputSchema,
   createImageVersionInputSchema,
+  getSkillRunInputSchema,
   getEditRequestInputSchema,
+  getSkillRequestInputSchema,
+  importImageAssetInputSchema,
+  importImageFromUrlInputSchema,
   insertImageIntoHolderInputSchema,
+  listCanvasSkillsInputSchema,
   openCanvasInputSchema,
   prepareAnnotationEditInputSchema,
   prepareImageGenerationInputSchema,
+  prepareSkillRunInputSchema,
+  recommendCanvasSkillsInputSchema,
+  runCanvasSkillInputSchema,
   saveSnapshotInputSchema,
+  submitSkillRequestInputSchema,
   updateEditRequestInputSchema,
-  watchEditRequestsInputSchema
+  updateSkillRequestInputSchema,
+  watchEditRequestsInputSchema,
+  watchSkillRequestsInputSchema
 } from '@ai-canvas/shared'
 import type {
   AnnotationInstruction,
   CanvasEditRequest,
+  CanvasSkillRequest,
   CanvasStatePayload,
   EditRequestPollResult,
   PreparedAnnotationEdit,
   PreparedImageGeneration,
-  ShapeSummary
+  ShapeSummary,
+  SkillRequestPollResult
 } from '@ai-canvas/shared'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
@@ -253,6 +267,41 @@ server.registerTool(
 )
 
 server.registerTool(
+  'import_image_asset',
+  {
+    title: 'Import Image Asset',
+    description:
+      'Import a local image file into AI Canvas as a selectable image that can be used by canvas Skills.',
+    inputSchema: importImageAssetInputSchema
+  },
+  async (input) => {
+    const parsed = importImageAssetInputSchema.parse(input)
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed)
+    }
+    const inputPath = await assertReadableFile(parsed.inputPath)
+    return asToolResult(await postJson('/api/canvas/import-file', { ...parsed, inputPath }))
+  }
+)
+
+server.registerTool(
+  'import_image_from_url',
+  {
+    title: 'Import Image From URL',
+    description:
+      'Download a supported image URL and import it into AI Canvas as a selectable image.',
+    inputSchema: importImageFromUrlInputSchema
+  },
+  async (input) => {
+    const parsed = importImageFromUrlInputSchema.parse(input)
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed)
+    }
+    return asToolResult(await postJson('/api/canvas/import-url', parsed))
+  }
+)
+
+server.registerTool(
   'collect_annotations',
   {
     title: 'Collect Canvas Annotations',
@@ -392,6 +441,183 @@ server.registerTool(
         parsed
       )
     )
+  }
+)
+
+server.registerTool(
+  'submit_canvas_skill_request',
+  {
+    title: 'Submit Canvas Skill Request',
+    description:
+      'Submit a canvas Skill request. Supports xiaohongshu-cover, youtube-thumbnail, cross-platform-adapt, product-marketing-set, logo-and-brand, and marketing-brochure.',
+    inputSchema: submitSkillRequestInputSchema
+  },
+  async (input) => {
+    const parsed = submitSkillRequestInputSchema.parse(input)
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed)
+    }
+    return asToolResult(await postJson('/api/canvas/skill-request', parsed))
+  }
+)
+
+server.registerTool(
+  'watch_skill_requests',
+  {
+    title: 'Watch AI Canvas Skill Requests',
+    description:
+      'Wait for a queued AI Canvas Skill request submitted from the canvas Skill panel and process its generationJobs sequentially.',
+    inputSchema: watchSkillRequestsInputSchema
+  },
+  async (input) => {
+    const parsed = watchSkillRequestsInputSchema.parse(input)
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed)
+    }
+    const deadline = Date.now() + parsed.waitMs
+    let pollResult: SkillRequestPollResult | undefined
+
+    do {
+      pollResult = await postJson<SkillRequestPollResult>('/api/canvas/skill-requests/next', {
+        claim: parsed.claim,
+        includeCompleted: parsed.includeCompleted
+      })
+      if (pollResult.request) return asToolResult(pollResult)
+      if (Date.now() >= deadline) break
+      await sleep(Math.min(1000, Math.max(250, deadline - Date.now())))
+    } while (Date.now() < deadline)
+
+    return asToolResult({
+      request: undefined,
+      timedOut: true,
+      message:
+        'No queued AI Canvas Skill request yet. Codex is waiting for the user to select an image, choose a Skill, and submit it from the canvas Skill panel.'
+    } satisfies SkillRequestPollResult)
+  }
+)
+
+server.registerTool(
+  'get_skill_request',
+  {
+    title: 'Get AI Canvas Skill Request',
+    description: 'Read one queued, processing, completed, failed, or clarification AI Canvas Skill request by id.',
+    inputSchema: getSkillRequestInputSchema
+  },
+  async (input) => {
+    const parsed = getSkillRequestInputSchema.parse(input)
+    return asToolResult(
+      await fetchJson<CanvasSkillRequest>(`/api/canvas/skill-requests/${encodeURIComponent(parsed.requestId)}`)
+    )
+  }
+)
+
+server.registerTool(
+  'update_skill_request',
+  {
+    title: 'Update AI Canvas Skill Request',
+    description: 'Mark an AI Canvas Skill request as completed, failed, processing, queued, or needing clarification.',
+    inputSchema: updateSkillRequestInputSchema
+  },
+  async (input) => {
+    const parsed = updateSkillRequestInputSchema.parse(input)
+    return asToolResult(
+      await postJson<CanvasSkillRequest>(
+        `/api/canvas/skill-requests/${encodeURIComponent(parsed.requestId)}/status`,
+        parsed
+      )
+    )
+  }
+)
+
+server.registerTool(
+  'list_canvas_skills',
+  {
+    title: 'List Canvas Skills',
+    description: 'List built-in AI Canvas Skills grouped by category.',
+    inputSchema: listCanvasSkillsInputSchema
+  },
+  async (input) => {
+    const parsed = listCanvasSkillsInputSchema.parse(input)
+    const suffix = parsed.category ? `?category=${encodeURIComponent(parsed.category)}` : ''
+    return asToolResult(await fetchJson(`/api/canvas/skills${suffix}`))
+  }
+)
+
+server.registerTool(
+  'recommend_canvas_skills',
+  {
+    title: 'Recommend Canvas Skills',
+    description: 'Recommend AI Canvas Skills based on the current selection and optional user request.',
+    inputSchema: recommendCanvasSkillsInputSchema
+  },
+  async (input) => {
+    const parsed = recommendCanvasSkillsInputSchema.parse(input)
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed)
+    }
+    return asToolResult(await postJson('/api/canvas/skills/recommend', parsed))
+  }
+)
+
+server.registerTool(
+  'prepare_skill_run',
+  {
+    title: 'Prepare Canvas Skill Run',
+    description: 'Create a lightweight run plan for an AI Canvas Skill using current canvas context.',
+    inputSchema: prepareSkillRunInputSchema
+  },
+  async (input) => {
+    const parsed = prepareSkillRunInputSchema.parse(input)
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed)
+    }
+    return asToolResult(await postJson('/api/canvas/skills/prepare-run', parsed))
+  }
+)
+
+server.registerTool(
+  'run_canvas_skill',
+  {
+    title: 'Run Canvas Skill',
+    description:
+      'Run a prepared AI Canvas Skill and return external generation jobs plus placement plans for Codex to process.',
+    inputSchema: runCanvasSkillInputSchema
+  },
+  async (input) => {
+    const parsed = runCanvasSkillInputSchema.parse(input)
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed)
+    }
+    return asToolResult(await postJson('/api/canvas/skills/run', parsed))
+  }
+)
+
+server.registerTool(
+  'get_skill_run',
+  {
+    title: 'Get Canvas Skill Run',
+    description: 'Read a previously prepared or run AI Canvas Skill run by id.',
+    inputSchema: getSkillRunInputSchema
+  },
+  async (input) => {
+    const parsed = getSkillRunInputSchema.parse(input)
+    return asToolResult(await fetchJson(`/api/canvas/skill-runs/${encodeURIComponent(parsed.runId)}`))
+  }
+)
+
+server.registerTool(
+  'apply_canvas_actions',
+  {
+    title: 'Apply Canvas Actions',
+    description: 'Apply a batch of normalized Canvas Actions to the current AI Canvas.',
+    inputSchema: applyCanvasActionsInputSchema
+  },
+  async (input) => {
+    const parsed = applyCanvasActionsInputSchema.parse(input)
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed)
+    }
+    return asToolResult(await postJson('/api/canvas/actions', parsed))
   }
 )
 

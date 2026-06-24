@@ -7,6 +7,46 @@ export const boundsSchema = z.object({
   h: z.number().positive()
 })
 
+export const canvasImageSourceSchema = z.enum([
+  'codex_generation',
+  'upload',
+  'drag_drop',
+  'paste',
+  'url',
+  'external_provider'
+])
+
+export const canvasSkillCategorySchema = z.enum([
+  'social_media',
+  'e_commerce',
+  'branding',
+  'marketing',
+  'studio'
+])
+
+export const canvasActionSchema = z.object({
+  id: z.string(),
+  type: z.enum([
+    'import_image',
+    'create_artboard',
+    'place_image',
+    'place_text',
+    'place_note',
+    'create_group',
+    'create_version',
+    'save_snapshot'
+  ]),
+  payload: z.record(z.unknown()).default({})
+})
+
+export const editRequestStatusSchema = z.enum([
+  'queued',
+  'processing',
+  'completed',
+  'failed',
+  'needs_clarification'
+])
+
 export const openCanvasInputSchema = z.object({
   workspaceRoot: z.string().optional(),
   canvasId: z.string().optional(),
@@ -29,6 +69,29 @@ export const insertImageIntoHolderInputSchema = z.object({
   title: z.string().default('AI 图片')
 })
 
+export const importImageAssetInputSchema = openCanvasInputSchema.extend({
+  inputPath: z.string(),
+  source: canvasImageSourceSchema.default('upload'),
+  title: z.string().default('外部导入图片'),
+  placement: z.enum(['viewport_center', 'selection_right', 'absolute']).default('selection_right'),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().positive().optional(),
+  h: z.number().positive().optional(),
+  selectAfterCreate: z.boolean().default(true)
+})
+
+export const importImageFromUrlInputSchema = openCanvasInputSchema.extend({
+  url: z.string().url(),
+  title: z.string().default('URL 导入图片'),
+  placement: z.enum(['viewport_center', 'selection_right', 'absolute']).default('selection_right'),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().positive().optional(),
+  h: z.number().positive().optional(),
+  selectAfterCreate: z.boolean().default(true)
+})
+
 export const collectAnnotationsInputSchema = z.object({
   targetShapeId: z.string().optional(),
   radius: z.number().positive().default(300),
@@ -40,7 +103,66 @@ export const createImageVersionInputSchema = z.object({
   imagePath: z.string(),
   placement: z.enum(['right', 'replace']).default('right'),
   title: z.string().default('AI 图片 v2'),
-  runId: z.string().optional()
+  runId: z.string().optional(),
+  skillRunId: z.string().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().positive().optional(),
+  h: z.number().positive().optional()
+})
+
+export const applyCanvasActionsInputSchema = openCanvasInputSchema.extend({
+  actions: z.array(canvasActionSchema)
+})
+
+export const listCanvasSkillsInputSchema = z.object({
+  category: canvasSkillCategorySchema.optional()
+})
+
+export const recommendCanvasSkillsInputSchema = openCanvasInputSchema.extend({
+  userRequest: z.string().optional(),
+  maxResults: z.number().int().positive().max(10).default(5)
+})
+
+export const prepareSkillRunInputSchema = openCanvasInputSchema.extend({
+  skillId: z.string(),
+  userRequest: z.string().optional(),
+  selectionMode: z.enum(['current']).default('current')
+})
+
+export const runCanvasSkillInputSchema = openCanvasInputSchema.extend({
+  runId: z.string(),
+  overrides: z.record(z.unknown()).optional()
+})
+
+export const getSkillRunInputSchema = z.object({
+  runId: z.string()
+})
+
+export const submitSkillRequestInputSchema = openCanvasInputSchema.extend({
+  skillId: z.string(),
+  userRequest: z.string().optional(),
+  brief: z.record(z.unknown()).optional(),
+  inputDataUrl: z.string().optional(),
+  inputTitle: z.string().optional(),
+  selectionMode: z.enum(['current']).default('current')
+})
+
+export const watchSkillRequestsInputSchema = openCanvasInputSchema.extend({
+  waitMs: z.number().int().min(0).max(55_000).default(30_000),
+  claim: z.boolean().default(true),
+  includeCompleted: z.boolean().default(false)
+})
+
+export const getSkillRequestInputSchema = z.object({
+  requestId: z.string()
+})
+
+export const updateSkillRequestInputSchema = z.object({
+  requestId: z.string(),
+  status: editRequestStatusSchema,
+  error: z.string().optional(),
+  result: z.record(z.unknown()).optional()
 })
 
 export const prepareImageGenerationInputSchema = openCanvasInputSchema.extend({
@@ -60,14 +182,6 @@ export const prepareAnnotationEditInputSchema = openCanvasInputSchema.extend({
   radius: z.number().positive().default(300),
   includeScreenshot: z.boolean().default(true)
 })
-
-export const editRequestStatusSchema = z.enum([
-  'queued',
-  'processing',
-  'completed',
-  'failed',
-  'needs_clarification'
-])
 
 export const watchEditRequestsInputSchema = openCanvasInputSchema.extend({
   waitMs: z.number().int().min(0).max(55_000).default(30_000),
@@ -91,8 +205,20 @@ export const saveSnapshotInputSchema = z.object({})
 export type OpenCanvasInput = z.infer<typeof openCanvasInputSchema>
 export type CreateImageHolderInput = z.infer<typeof createImageHolderInputSchema>
 export type InsertImageIntoHolderInput = z.infer<typeof insertImageIntoHolderInputSchema>
+export type ImportImageAssetInput = z.infer<typeof importImageAssetInputSchema>
+export type ImportImageFromUrlInput = z.infer<typeof importImageFromUrlInputSchema>
 export type CollectAnnotationsInput = z.infer<typeof collectAnnotationsInputSchema>
 export type CreateImageVersionInput = z.infer<typeof createImageVersionInputSchema>
+export type ApplyCanvasActionsInput = z.infer<typeof applyCanvasActionsInputSchema>
+export type ListCanvasSkillsInput = z.infer<typeof listCanvasSkillsInputSchema>
+export type RecommendCanvasSkillsInput = z.infer<typeof recommendCanvasSkillsInputSchema>
+export type PrepareSkillRunInput = z.infer<typeof prepareSkillRunInputSchema>
+export type RunCanvasSkillInput = z.infer<typeof runCanvasSkillInputSchema>
+export type GetSkillRunInput = z.infer<typeof getSkillRunInputSchema>
+export type SubmitSkillRequestInput = z.infer<typeof submitSkillRequestInputSchema>
+export type WatchSkillRequestsInput = z.infer<typeof watchSkillRequestsInputSchema>
+export type GetSkillRequestInput = z.infer<typeof getSkillRequestInputSchema>
+export type UpdateSkillRequestInput = z.infer<typeof updateSkillRequestInputSchema>
 export type PrepareImageGenerationInput = z.infer<typeof prepareImageGenerationInputSchema>
 export type PrepareAnnotationEditInput = z.infer<typeof prepareAnnotationEditInputSchema>
 export type WatchEditRequestsInput = z.infer<typeof watchEditRequestsInputSchema>

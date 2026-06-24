@@ -32,6 +32,8 @@ English:
 - Reads arrows, text notes, circles, and rectangles as edit instructions.
 - Creates revised image versions to the right of the original image.
 - Supports a button-driven auto edit loop: annotate on the canvas, click `按标注修图`, and let Codex process the queued request.
+- Supports executable canvas Skills from the right-side Skill panel: `小红书封面`, `YouTube 封面图`, `一键跨平台适配`, `产品营销组图`, `Logo 与品牌`, and `营销宣传册`.
+- Skill results are generated as final designed raster images and placed back on the canvas for side-by-side comparison.
 
 中文：
 
@@ -41,6 +43,8 @@ English:
 - 读取箭头、文字、圆圈、矩形等标注作为修图指令。
 - 把新版图片放到旧图右侧，保留历史版本。
 - 支持按钮式自动修图：在画布标注后点击 `按标注修图`，Codex 会接收队列任务并继续处理。
+- 支持右侧 Skill 面板里的真实生成闭环：`小红书封面`、`YouTube 封面图`、`一键跨平台适配`、`产品营销组图`、`Logo 与品牌`、`营销宣传册`。
+- Skill 结果会作为完整设计成品图生成，并自动放回画布，方便和原图横向对比。
 
 ## Quick Start / 快速开始
 
@@ -87,6 +91,8 @@ English:
 5. Click `按标注修图` on the canvas after each batch of annotations.
 6. Codex creates a new version on the right and keeps the original image.
 
+For canvas Skills, say `@AI Canvas 继续处理画布里的 Skill 请求`, then select an image when the Skill requires one, choose a Skill from the canvas Skill panel, fill in the fields, and click `提交给 Codex 生成`. Codex processes the queued Skill request and places the generated result to the right of the source image.
+
 中文：
 
 1. 在 Codex 里要求 AI Canvas 打开画布并生成图片。
@@ -96,6 +102,19 @@ English:
 5. 每批标注完成后，在画布上点击 `按标注修图`。
 6. Codex 会把新版放到右侧，并保留旧图。
 
+Skill 面板：先说 `@AI Canvas 继续处理画布里的 Skill 请求`，再根据需要选中图片，打开画布 Skill 面板，选择 Skill，填写参数并点击 `提交给 Codex 生成`。Codex 会处理队列任务，并把生成结果放到原图右侧。
+
+## Built-in Skills / 内置 Skill
+
+| Category / 分类 | Skill | Output / 输出 |
+| --- | --- | --- |
+| Social Media | 小红书封面 | 3:4 成品封面图，包含字体、配色、版式和标题。 |
+| Social Media | YouTube 封面图 | 16:9 高识别度缩略图。 |
+| Studio | 一键跨平台适配 | 按小红书、Instagram、Story/Reels、公众号、推特、LinkedIn 等比例重构图片。 |
+| E Commerce | 产品营销组图 | 产品主图、卖点图、场景图、细节图等电商物料。 |
+| Branding | Logo 与品牌 | Logo 概念、备选方向、品牌视觉板和应用预览。 |
+| Marketing | 营销宣传册 | 三折页、服务介绍册、活动推广册或产品推广册。 |
+
 Useful prompts / 常用提示词：
 
 ```text
@@ -103,6 +122,7 @@ Useful prompts / 常用提示词：
 @AI Canvas 生成一张竖版拉面广告，品牌叫拉面一番，要高级食物摄影风格。
 @AI Canvas 开启自动修图模式。
 @AI Canvas 按我画布上的标注修改。
+@AI Canvas 继续处理画布里的 Skill 请求。
 ```
 
 ## Installation Models / 安装方式

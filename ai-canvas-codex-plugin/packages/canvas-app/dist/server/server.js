@@ -30535,6 +30535,42 @@ var boundsSchema = external_exports.object({
   w: external_exports.number().positive(),
   h: external_exports.number().positive()
 });
+var canvasImageSourceSchema = external_exports.enum([
+  "codex_generation",
+  "upload",
+  "drag_drop",
+  "paste",
+  "url",
+  "external_provider"
+]);
+var canvasSkillCategorySchema = external_exports.enum([
+  "social_media",
+  "e_commerce",
+  "branding",
+  "marketing",
+  "studio"
+]);
+var canvasActionSchema = external_exports.object({
+  id: external_exports.string(),
+  type: external_exports.enum([
+    "import_image",
+    "create_artboard",
+    "place_image",
+    "place_text",
+    "place_note",
+    "create_group",
+    "create_version",
+    "save_snapshot"
+  ]),
+  payload: external_exports.record(external_exports.unknown()).default({})
+});
+var editRequestStatusSchema = external_exports.enum([
+  "queued",
+  "processing",
+  "completed",
+  "failed",
+  "needs_clarification"
+]);
 var openCanvasInputSchema = external_exports.object({
   workspaceRoot: external_exports.string().optional(),
   canvasId: external_exports.string().optional(),
@@ -30554,6 +30590,27 @@ var insertImageIntoHolderInputSchema = external_exports.object({
   mode: external_exports.enum(["contain", "cover"]).default("contain"),
   title: external_exports.string().default("AI \u56FE\u7247")
 });
+var importImageAssetInputSchema = openCanvasInputSchema.extend({
+  inputPath: external_exports.string(),
+  source: canvasImageSourceSchema.default("upload"),
+  title: external_exports.string().default("\u5916\u90E8\u5BFC\u5165\u56FE\u7247"),
+  placement: external_exports.enum(["viewport_center", "selection_right", "absolute"]).default("selection_right"),
+  x: external_exports.number().optional(),
+  y: external_exports.number().optional(),
+  w: external_exports.number().positive().optional(),
+  h: external_exports.number().positive().optional(),
+  selectAfterCreate: external_exports.boolean().default(true)
+});
+var importImageFromUrlInputSchema = openCanvasInputSchema.extend({
+  url: external_exports.string().url(),
+  title: external_exports.string().default("URL \u5BFC\u5165\u56FE\u7247"),
+  placement: external_exports.enum(["viewport_center", "selection_right", "absolute"]).default("selection_right"),
+  x: external_exports.number().optional(),
+  y: external_exports.number().optional(),
+  w: external_exports.number().positive().optional(),
+  h: external_exports.number().positive().optional(),
+  selectAfterCreate: external_exports.boolean().default(true)
+});
 var collectAnnotationsInputSchema = external_exports.object({
   targetShapeId: external_exports.string().optional(),
   radius: external_exports.number().positive().default(300),
@@ -30564,7 +30621,56 @@ var createImageVersionInputSchema = external_exports.object({
   imagePath: external_exports.string(),
   placement: external_exports.enum(["right", "replace"]).default("right"),
   title: external_exports.string().default("AI \u56FE\u7247 v2"),
-  runId: external_exports.string().optional()
+  runId: external_exports.string().optional(),
+  skillRunId: external_exports.string().optional(),
+  x: external_exports.number().optional(),
+  y: external_exports.number().optional(),
+  w: external_exports.number().positive().optional(),
+  h: external_exports.number().positive().optional()
+});
+var applyCanvasActionsInputSchema = openCanvasInputSchema.extend({
+  actions: external_exports.array(canvasActionSchema)
+});
+var listCanvasSkillsInputSchema = external_exports.object({
+  category: canvasSkillCategorySchema.optional()
+});
+var recommendCanvasSkillsInputSchema = openCanvasInputSchema.extend({
+  userRequest: external_exports.string().optional(),
+  maxResults: external_exports.number().int().positive().max(10).default(5)
+});
+var prepareSkillRunInputSchema = openCanvasInputSchema.extend({
+  skillId: external_exports.string(),
+  userRequest: external_exports.string().optional(),
+  selectionMode: external_exports.enum(["current"]).default("current")
+});
+var runCanvasSkillInputSchema = openCanvasInputSchema.extend({
+  runId: external_exports.string(),
+  overrides: external_exports.record(external_exports.unknown()).optional()
+});
+var getSkillRunInputSchema = external_exports.object({
+  runId: external_exports.string()
+});
+var submitSkillRequestInputSchema = openCanvasInputSchema.extend({
+  skillId: external_exports.string(),
+  userRequest: external_exports.string().optional(),
+  brief: external_exports.record(external_exports.unknown()).optional(),
+  inputDataUrl: external_exports.string().optional(),
+  inputTitle: external_exports.string().optional(),
+  selectionMode: external_exports.enum(["current"]).default("current")
+});
+var watchSkillRequestsInputSchema = openCanvasInputSchema.extend({
+  waitMs: external_exports.number().int().min(0).max(55e3).default(3e4),
+  claim: external_exports.boolean().default(true),
+  includeCompleted: external_exports.boolean().default(false)
+});
+var getSkillRequestInputSchema = external_exports.object({
+  requestId: external_exports.string()
+});
+var updateSkillRequestInputSchema = external_exports.object({
+  requestId: external_exports.string(),
+  status: editRequestStatusSchema,
+  error: external_exports.string().optional(),
+  result: external_exports.record(external_exports.unknown()).optional()
 });
 var prepareImageGenerationInputSchema = openCanvasInputSchema.extend({
   request: external_exports.string().describe("The user natural-language image request."),
@@ -30582,13 +30688,6 @@ var prepareAnnotationEditInputSchema = openCanvasInputSchema.extend({
   radius: external_exports.number().positive().default(300),
   includeScreenshot: external_exports.boolean().default(true)
 });
-var editRequestStatusSchema = external_exports.enum([
-  "queued",
-  "processing",
-  "completed",
-  "failed",
-  "needs_clarification"
-]);
 var watchEditRequestsInputSchema = openCanvasInputSchema.extend({
   waitMs: external_exports.number().int().min(0).max(55e3).default(3e4),
   claim: external_exports.boolean().default(true),
@@ -30656,8 +30755,17 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 
 // src/server.ts
 var APP_VERSION = "0.1.0";
-var FEATURES = ["annotationEditRequests", "editRequestQueue", "offlineCanvasSync"];
+var FEATURES = [
+  "annotationEditRequests",
+  "editRequestQueue",
+  "offlineCanvasSync",
+  "imageImport",
+  "canvasActions",
+  "skillHost"
+];
 var LISTENER_ACTIVE_WINDOW_MS = 75e3;
+var MAX_IMPORT_BYTES = 15 * 1024 * 1024;
+var URL_IMPORT_TIMEOUT_MS = 2e4;
 var DEFAULT_PORT = Number(process.env.AI_CANVAS_PORT ?? 43218);
 var __dirname = path.dirname(fileURLToPath(import.meta.url));
 var pluginRoot = findPluginRoot(__dirname);
@@ -30665,6 +30773,7 @@ var clientDist = path.resolve(pluginRoot, "packages/canvas-app/dist/client");
 var clientIndex = path.join(clientDist, "index.html");
 var pendingCommands = /* @__PURE__ */ new Map();
 var clients = /* @__PURE__ */ new Set();
+var activeClient;
 var session;
 var codexListenerLastSeenAt;
 function nowIso() {
@@ -30733,7 +30842,9 @@ async function ensureCanvasDirs(storagePath) {
   await mkdir(path.join(storagePath, "assets/thumbnails"), { recursive: true });
   await mkdir(path.join(storagePath, "runs"), { recursive: true });
   await mkdir(path.join(storagePath, "exports"), { recursive: true });
+  await mkdir(path.join(storagePath, "imports"), { recursive: true });
   await mkdir(path.join(storagePath, "requests"), { recursive: true });
+  await mkdir(path.join(storagePath, "skill-runs"), { recursive: true });
   await mkdir(path.join(storagePath, "operations"), { recursive: true });
   await mkdir(path.join(storagePath, "logs"), { recursive: true });
 }
@@ -30829,6 +30940,7 @@ function sendCommand(command, payload) {
   if (openClients.length === 0) {
     throw new Error("Canvas browser is not connected yet");
   }
+  const target = activeClient && activeClient.readyState === import_websocket.default.OPEN ? activeClient : openClients[openClients.length - 1];
   const id = nanoid();
   const message = JSON.stringify({ type: "command", id, command, payload });
   const promise = new Promise((resolve, reject) => {
@@ -30838,7 +30950,7 @@ function sendCommand(command, payload) {
     }, 12e3);
     pendingCommands.set(id, { resolve, reject, timer });
   });
-  openClients[0].send(message);
+  target.send(message);
   return promise;
 }
 function hasCanvasClient() {
@@ -30846,6 +30958,142 @@ function hasCanvasClient() {
 }
 function makeShapeId(prefix) {
   return `shape:${prefix}_${nanoid(8)}`;
+}
+function isRecord(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+function numberOrUndefined(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : void 0;
+}
+function displaySize(width, height, maxSize = 520) {
+  const safeWidth = Number.isFinite(width) && width > 0 ? width : 1024;
+  const safeHeight = Number.isFinite(height) && height > 0 ? height : 1024;
+  const scale = Math.min(1, maxSize / Math.max(safeWidth, safeHeight));
+  return {
+    w: Math.max(80, Math.round(safeWidth * scale)),
+    h: Math.max(80, Math.round(safeHeight * scale))
+  };
+}
+function defaultImportPosition(width, height, payload) {
+  const size = {
+    w: numberOrUndefined(payload.w) ?? displaySize(width, height).w,
+    h: numberOrUndefined(payload.h) ?? displaySize(width, height).h
+  };
+  const explicitX = numberOrUndefined(payload.x);
+  const explicitY = numberOrUndefined(payload.y);
+  if (explicitX !== void 0 && explicitY !== void 0) {
+    return { x: explicitX, y: explicitY, ...size };
+  }
+  const selected = session?.selection.shapes[0];
+  if (selected && String(payload.placement ?? "selection_right") === "selection_right") {
+    return {
+      x: selected.bounds.x + selected.bounds.w + 80,
+      y: selected.bounds.y,
+      ...size
+    };
+  }
+  return { x: 120, y: 100, ...size };
+}
+function detectImageMime(buffer, name = "") {
+  const lowerName = name.toLowerCase();
+  if (buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    return "image/png";
+  }
+  if (buffer[0] === 255 && buffer[1] === 216) return "image/jpeg";
+  if (buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP") {
+    return "image/webp";
+  }
+  if (lowerName.endsWith(".png")) return "image/png";
+  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) return "image/jpeg";
+  if (lowerName.endsWith(".webp")) return "image/webp";
+  return void 0;
+}
+function extensionForMime(mimeType) {
+  if (mimeType === "image/png") return ".png";
+  if (mimeType === "image/jpeg") return ".jpg";
+  if (mimeType === "image/webp") return ".webp";
+  return ".png";
+}
+function readPngDimensions(buffer) {
+  if (buffer.length < 24) return void 0;
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20)
+  };
+}
+function readJpegDimensions(buffer) {
+  let offset = 2;
+  while (offset < buffer.length) {
+    if (buffer[offset] !== 255) return void 0;
+    const marker = buffer[offset + 1];
+    const length = buffer.readUInt16BE(offset + 2);
+    if (length < 2) return void 0;
+    if (marker === 192 || marker === 193 || marker === 194 || marker === 195 || marker === 197 || marker === 198 || marker === 199 || marker === 201 || marker === 202 || marker === 203 || marker === 205 || marker === 206 || marker === 207) {
+      return {
+        width: buffer.readUInt16BE(offset + 7),
+        height: buffer.readUInt16BE(offset + 5)
+      };
+    }
+    offset += 2 + length;
+  }
+  return void 0;
+}
+function readWebpDimensions(buffer) {
+  const chunk = buffer.subarray(12, 16).toString("ascii");
+  if (chunk === "VP8X" && buffer.length >= 30) {
+    return {
+      width: 1 + buffer.readUIntLE(24, 3),
+      height: 1 + buffer.readUIntLE(27, 3)
+    };
+  }
+  if (chunk === "VP8 " && buffer.length >= 30) {
+    return {
+      width: buffer.readUInt16LE(26) & 16383,
+      height: buffer.readUInt16LE(28) & 16383
+    };
+  }
+  if (chunk === "VP8L" && buffer.length >= 25) {
+    const bits = buffer.readUInt32LE(21);
+    return {
+      width: (bits & 16383) + 1,
+      height: (bits >> 14 & 16383) + 1
+    };
+  }
+  return void 0;
+}
+function readImageDimensionsFromBuffer(buffer, mimeType) {
+  const dimensions = mimeType === "image/png" ? readPngDimensions(buffer) : mimeType === "image/jpeg" ? readJpegDimensions(buffer) : mimeType === "image/webp" ? readWebpDimensions(buffer) : void 0;
+  return dimensions ?? { width: 1024, height: 1024 };
+}
+function assertSupportedImage(buffer, name = "") {
+  if (buffer.byteLength > MAX_IMPORT_BYTES) {
+    throw new Error(`Image is too large. Maximum size is ${Math.round(MAX_IMPORT_BYTES / 1024 / 1024)}MB.`);
+  }
+  const mimeType = detectImageMime(buffer, name);
+  if (!mimeType) {
+    throw new Error("Unsupported image format. Use png, jpg, jpeg, or webp.");
+  }
+  return mimeType;
+}
+function assertSafeImageUrl(rawUrl) {
+  const parsed = new URL(rawUrl);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Only http and https image URLs are supported.");
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host === "localhost" || host === "::1" || host === "0.0.0.0" || host.startsWith("127.") || host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("169.254.") || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) {
+    throw new Error("Private or localhost image URLs are not supported.");
+  }
+  return parsed;
+}
+function parseDataUrl(dataUrl) {
+  const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl);
+  if (!match) throw new Error("Expected a base64 image data URL.");
+  return {
+    mimeType: match[1],
+    buffer: Buffer.from(match[2], "base64")
+  };
 }
 function upsertShapeSummary(shape) {
   if (!session) throw new Error("Canvas session is not open");
@@ -30887,6 +31135,240 @@ async function copyImageIntoCanvas(imagePath) {
     absolutePath: targetPath,
     assetPath: `assets/images/${targetName}`,
     assetUrl: `/api/canvas/asset-file/images/${encodeURIComponent(targetName)}`
+  };
+}
+async function writeImageBufferIntoCanvas(input) {
+  if (!session) throw new Error("Canvas session is not open");
+  const mimeType = assertSupportedImage(input.buffer, input.originalName ?? input.originalUrl ?? "image");
+  const dimensions = readImageDimensionsFromBuffer(input.buffer, mimeType);
+  const importId = slugId("import");
+  const baseName = (input.originalName ?? input.originalUrl?.split("/").pop() ?? importId).replace(
+    /[^a-zA-Z0-9._-]/g,
+    "_"
+  );
+  const ext = extensionForMime(mimeType);
+  const targetName = `${path.basename(baseName, path.extname(baseName)) || importId}_${Date.now()}${ext}`;
+  const targetPath = path.join(session.storagePath, "assets/images", targetName);
+  ensureInside(session.storagePath, targetPath);
+  await writeFile(targetPath, input.buffer);
+  const assetPath = `assets/images/${targetName}`;
+  const assetUrl = `/api/canvas/asset-file/images/${encodeURIComponent(targetName)}`;
+  const createdAt = nowIso();
+  const record = {
+    importId,
+    canvasId: session.canvasId,
+    source: input.source,
+    originalName: input.originalName,
+    originalUrl: input.originalUrl,
+    inputPath: input.inputPath,
+    assetPath,
+    assetUrl,
+    width: dimensions.width,
+    height: dimensions.height,
+    mimeType,
+    createdAt
+  };
+  await writeJson(path.join(session.storagePath, "imports", `${importId}.json`), record);
+  return {
+    record,
+    absolutePath: targetPath
+  };
+}
+async function readImportFile(inputPath) {
+  const absolutePath = path.resolve(inputPath);
+  await access(absolutePath);
+  const buffer = await readFile(absolutePath);
+  return {
+    buffer,
+    absolutePath,
+    originalName: path.basename(absolutePath)
+  };
+}
+async function fetchImportUrl(rawUrl) {
+  const parsed = assertSafeImageUrl(rawUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), URL_IMPORT_TIMEOUT_MS);
+  try {
+    const response = await fetch(parsed.toString(), {
+      signal: controller.signal,
+      headers: { Accept: "image/png,image/jpeg,image/webp" }
+    });
+    if (!response.ok) throw new Error(`Image URL returned HTTP ${response.status}.`);
+    const contentType = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+    if (contentType && !["image/png", "image/jpeg", "image/webp"].includes(contentType)) {
+      throw new Error("Image URL did not return a supported image content type.");
+    }
+    const length = Number(response.headers.get("content-length") ?? 0);
+    if (length > MAX_IMPORT_BYTES) {
+      throw new Error(`Image is too large. Maximum size is ${Math.round(MAX_IMPORT_BYTES / 1024 / 1024)}MB.`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength > MAX_IMPORT_BYTES) {
+      throw new Error(`Image is too large. Maximum size is ${Math.round(MAX_IMPORT_BYTES / 1024 / 1024)}MB.`);
+    }
+    return {
+      buffer,
+      originalName: path.basename(parsed.pathname) || "url-image",
+      url: parsed.toString()
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+function importedImageShape(payload) {
+  const width = Number(payload.imageWidth ?? payload.width ?? 1024);
+  const height = Number(payload.imageHeight ?? payload.height ?? 1024);
+  const bounds = {
+    ...defaultImportPosition(width, height, payload),
+    w: numberOrUndefined(payload.w) ?? defaultImportPosition(width, height, payload).w,
+    h: numberOrUndefined(payload.h) ?? defaultImportPosition(width, height, payload).h
+  };
+  const title = String(payload.title ?? "\u5916\u90E8\u5BFC\u5165\u56FE\u7247");
+  const shapeId = String(payload.imageShapeId ?? makeShapeId("image"));
+  return {
+    id: shapeId,
+    type: "image",
+    role: "ai_image",
+    bounds,
+    assetPath: String(payload.assetPath),
+    assetUrl: String(payload.assetUrl),
+    version: 1,
+    meta: {
+      aiCanvasRole: "ai_image",
+      assetPath: String(payload.assetPath),
+      assetUrl: String(payload.assetUrl),
+      imageSource: String(payload.imageSource ?? "upload"),
+      importId: payload.importId ? String(payload.importId) : void 0,
+      usableAsSkillInput: true,
+      title
+    }
+  };
+}
+async function importImageOffline(payload) {
+  const shape = importedImageShape(payload);
+  upsertShapeSummary(shape);
+  if (payload.selectAfterCreate !== false) selectShapeSummary(shape);
+  queuePendingOperation("import_image", {
+    ...payload,
+    imageShapeId: shape.id,
+    x: shape.bounds.x,
+    y: shape.bounds.y,
+    w: shape.bounds.w,
+    h: shape.bounds.h
+  });
+  await persistSession();
+  return {
+    importId: payload.importId,
+    shapeId: shape.id,
+    imageShapeId: shape.id,
+    assetPath: shape.assetPath,
+    assetUrl: shape.assetUrl,
+    bounds: shape.bounds,
+    pendingSync: true
+  };
+}
+async function importCanvasImage(input) {
+  const written = await writeImageBufferIntoCanvas(input);
+  const shapeId = String(input.payload.imageShapeId ?? makeShapeId("image"));
+  const commandPayload = {
+    ...input.payload,
+    importId: written.record.importId,
+    imageShapeId: shapeId,
+    assetPath: written.record.assetPath,
+    assetUrl: written.record.assetUrl,
+    imageSource: input.source,
+    imageWidth: written.record.width,
+    imageHeight: written.record.height,
+    mimeType: written.record.mimeType,
+    title: input.payload.title ?? input.originalName ?? "\u5916\u90E8\u5BFC\u5165\u56FE\u7247"
+  };
+  const result = hasCanvasClient() ? await sendCommand("import_image", commandPayload) : await importImageOffline(commandPayload);
+  written.record.createdShapeId = String(result.imageShapeId ?? shapeId);
+  await writeJson(path.join(session.storagePath, "imports", `${written.record.importId}.json`), written.record);
+  const runId = slugId("run");
+  await writeRun({
+    runId,
+    type: "import_image",
+    model: "external",
+    input: {
+      source: input.source,
+      originalName: input.originalName,
+      originalUrl: input.originalUrl,
+      inputPath: input.inputPath
+    },
+    output: result
+  });
+  await persistSession();
+  return {
+    ...result,
+    importId: written.record.importId,
+    runId,
+    shapeId: written.record.createdShapeId,
+    assetPath: written.record.assetPath,
+    assetUrl: written.record.assetUrl,
+    width: written.record.width,
+    height: written.record.height,
+    message: "\u56FE\u7247\u5DF2\u5BFC\u5165\u753B\u5E03\uFF0C\u5E76\u5DF2\u9009\u4E2D\u3002"
+  };
+}
+async function prepareCanvasActions(actions) {
+  const prepared = [];
+  for (const action of actions) {
+    const payload = { ...action.payload ?? {} };
+    if ((action.type === "place_image" || action.type === "create_version") && typeof payload.imagePath === "string" && !payload.assetPath) {
+      const copied = await copyImageIntoCanvas(payload.imagePath);
+      Object.assign(payload, copied);
+    }
+    if (action.type === "import_image" && typeof payload.inputPath === "string" && !payload.assetPath) {
+      const file = await readImportFile(payload.inputPath);
+      const written = await writeImageBufferIntoCanvas({
+        buffer: file.buffer,
+        source: payload.imageSource ?? payload.source ?? "upload",
+        originalName: payload.title ? String(payload.title) : file.originalName,
+        inputPath: file.absolutePath
+      });
+      Object.assign(payload, {
+        importId: written.record.importId,
+        assetPath: written.record.assetPath,
+        assetUrl: written.record.assetUrl,
+        imageSource: written.record.source,
+        imageWidth: written.record.width,
+        imageHeight: written.record.height,
+        mimeType: written.record.mimeType,
+        imageShapeId: payload.imageShapeId ?? makeShapeId("image")
+      });
+    }
+    prepared.push({ ...action, payload });
+  }
+  return prepared;
+}
+async function applyCanvasActions(actions) {
+  const prepared = await prepareCanvasActions(actions);
+  if (hasCanvasClient()) {
+    const result = await sendCommand("apply_canvas_actions", { actions: prepared });
+    await writeRun({
+      runId: slugId("run"),
+      type: "apply_canvas_actions",
+      model: "external",
+      input: { actionCount: prepared.length },
+      output: result
+    });
+    await persistSession();
+    return result;
+  }
+  queuePendingOperation("apply_canvas_actions", { actions: prepared });
+  await writeRun({
+    runId: slugId("run"),
+    type: "apply_canvas_actions",
+    model: "external",
+    input: { actionCount: prepared.length },
+    output: { pendingSync: true }
+  });
+  await persistSession();
+  return {
+    applied: true,
+    actionCount: prepared.length,
+    results: prepared.map((action) => ({ actionId: action.id, pendingSync: true }))
   };
 }
 async function writeRun(record) {
@@ -30985,8 +31467,12 @@ async function createImageVersionOffline(payload) {
   const sourceVersion = Number(source.version ?? source.meta?.version ?? 1);
   const version = sourceVersion + 1;
   const placement = String(payload.placement ?? "right");
-  const x = placement === "replace" ? source.bounds.x : source.bounds.x + source.bounds.w + 80;
-  const y = source.bounds.y;
+  const explicitX = typeof payload.x === "number" && Number.isFinite(payload.x) ? payload.x : void 0;
+  const explicitY = typeof payload.y === "number" && Number.isFinite(payload.y) ? payload.y : void 0;
+  const x = explicitX ?? (placement === "replace" ? source.bounds.x : source.bounds.x + source.bounds.w + 80);
+  const y = explicitY ?? source.bounds.y;
+  const w = Number(payload.w ?? source.bounds.w);
+  const h = Number(payload.h ?? source.bounds.h);
   const newShapeId = String(payload.newShapeId ?? makeShapeId("image"));
   const arrowShapeId = String(payload.arrowShapeId ?? makeShapeId("version_arrow"));
   const title = String(payload.title ?? `AI \u56FE\u7247 v${version}`);
@@ -30994,7 +31480,7 @@ async function createImageVersionOffline(payload) {
     id: newShapeId,
     type: "image",
     role: "ai_image",
-    bounds: { x, y, w: source.bounds.w, h: source.bounds.h },
+    bounds: { x, y, w, h },
     assetPath: String(payload.assetPath),
     assetUrl: String(payload.assetUrl),
     version,
@@ -31052,7 +31538,8 @@ async function createImageVersionOffline(payload) {
     assetPath: payload.assetPath,
     version,
     parentShapeId: sourceShapeId,
-    pendingSync: true
+    pendingSync: true,
+    bounds: { x, y, w, h }
   };
 }
 function absoluteCanvasPath(relativePath) {
@@ -31152,6 +31639,1812 @@ async function prepareAnnotationEditFromBody(body) {
   };
   return { result, userRequest };
 }
+var builtinSkills = [
+  {
+    id: "xiaohongshu-cover",
+    name: "\u5C0F\u7EA2\u4E66\u5C01\u9762",
+    category: "social_media",
+    description: "\u6839\u636E\u5F53\u524D\u56FE\u7247\u548C\u53C2\u6570\u76F4\u51FA\u5E26\u5B57\u4F53\u3001\u914D\u8272\u548C\u7248\u5F0F\u8BBE\u8BA1\u7684\u5B8C\u6574\u5C0F\u7EA2\u4E66\u5C01\u9762\u3002",
+    icon: "book-open",
+    entrypoints: ["canvas_selection", "chat_skill_panel", "natural_language"],
+    inputRequirements: {
+      requiresSelection: true,
+      acceptedRoles: ["ai_image"],
+      acceptedShapeTypes: ["image"],
+      optionalTextPrompt: true
+    },
+    defaults: { aspectRatio: "3:4", variantCount: 1 },
+    outputs: ["generation_jobs"],
+    capabilities: ["image_generation", "text_generation", "layout"],
+    priority: 1
+  },
+  {
+    id: "youtube-thumbnail",
+    name: "YouTube \u5C01\u9762\u56FE",
+    category: "social_media",
+    description: "\u57FA\u4E8E\u5F53\u524D\u56FE\u7247\u751F\u6210\u9AD8\u8BC6\u522B\u5EA6\u7684 16:9 YouTube \u7F29\u7565\u56FE\u65B9\u5411\u3002",
+    icon: "video",
+    entrypoints: ["canvas_selection", "chat_skill_panel", "natural_language"],
+    inputRequirements: {
+      requiresSelection: true,
+      acceptedRoles: ["ai_image"],
+      acceptedShapeTypes: ["image"],
+      optionalTextPrompt: true
+    },
+    defaults: { aspectRatio: "16:9", variantCount: 3 },
+    outputs: ["generation_jobs"],
+    capabilities: ["image_generation", "text_generation", "layout"],
+    priority: 2
+  },
+  {
+    id: "cross-platform-adapt",
+    name: "\u4E00\u952E\u8DE8\u5E73\u53F0\u9002\u914D",
+    category: "studio",
+    description: "\u6309\u5E73\u53F0\u6BD4\u4F8B\u3001\u5B89\u5168\u533A\u548C\u4F7F\u7528\u573A\u666F\u91CD\u6784\u5F53\u524D\u56FE\u7247\u3002",
+    icon: "layout",
+    entrypoints: ["canvas_selection", "chat_skill_panel", "natural_language"],
+    inputRequirements: {
+      requiresSelection: true,
+      acceptedRoles: ["ai_image", "artboard"],
+      acceptedShapeTypes: ["image", "geo"],
+      optionalTextPrompt: true,
+      requiredFields: ["\u53D1\u5E03\u76EE\u6807", "\u5FC5\u987B\u4FDD\u7559"]
+    },
+    defaults: {
+      platforms: [
+        { name: "\u5C0F\u7EA2\u4E66", aspectRatio: "3:4" },
+        { name: "Instagram", aspectRatio: "1:1" },
+        { name: "Instagram Story", aspectRatio: "9:16" },
+        { name: "YouTube Thumbnail", aspectRatio: "16:9" },
+        { name: "LinkedIn", aspectRatio: "1.91:1" }
+      ]
+    },
+    outputs: ["generation_jobs", "canvas_actions"],
+    capabilities: ["image_generation", "layout", "artboard_generation"],
+    priority: 3
+  },
+  {
+    id: "product-marketing-set",
+    name: "\u4EA7\u54C1\u8425\u9500\u7EC4\u56FE",
+    category: "e_commerce",
+    description: "\u6309\u5E73\u53F0\u89C4\u8303\u751F\u6210\u4EA7\u54C1\u4E3B\u56FE\u3001\u5356\u70B9\u56FE\u3001\u573A\u666F\u56FE\u548C\u7EC6\u8282\u56FE\u3002",
+    icon: "shopping-bag",
+    entrypoints: ["canvas_selection", "chat_skill_panel", "natural_language"],
+    inputRequirements: {
+      requiresSelection: true,
+      acceptedRoles: ["ai_image"],
+      acceptedShapeTypes: ["image"],
+      optionalTextPrompt: true,
+      requiredFields: ["\u4EA7\u54C1\u540D\u79F0", "\u76EE\u6807\u7528\u6237", "\u6838\u5FC3\u5356\u70B9"]
+    },
+    defaults: { platform: "general_ecommerce", variantCount: 5 },
+    outputs: ["generation_jobs"],
+    capabilities: ["image_generation", "text_generation", "layout"],
+    priority: 4
+  },
+  {
+    id: "logo-and-brand",
+    name: "Logo \u4E0E\u54C1\u724C",
+    category: "branding",
+    description: "\u4ECE\u54C1\u724C\u7B80\u62A5\u751F\u6210 Logo \u65B9\u5411\u3001\u8272\u677F\u3001\u89C6\u89C9\u677F\u548C\u5E94\u7528\u9884\u89C8\u3002",
+    icon: "badge",
+    entrypoints: ["canvas_selection", "chat_skill_panel", "natural_language"],
+    inputRequirements: {
+      optionalTextPrompt: true,
+      requiredFields: ["\u54C1\u724C\u540D", "\u884C\u4E1A/\u54C1\u7C7B", "\u76EE\u6807\u53D7\u4F17", "\u5B9A\u4F4D/\u5DEE\u5F02\u70B9"]
+    },
+    defaults: { variantCount: 5 },
+    outputs: ["generation_jobs"],
+    capabilities: ["image_generation", "text_generation", "layout"],
+    priority: 5
+  },
+  {
+    id: "marketing-brochure",
+    name: "\u8425\u9500\u5BA3\u4F20\u518C",
+    category: "marketing",
+    description: "\u751F\u6210\u4E09\u6298\u9875/\u670D\u52A1\u4ECB\u7ECD\u518C\u7684\u5916\u9875\u3001\u5185\u9875\u3001\u6837\u673A\u548C\u63A8\u5E7F\u56FE\u3002",
+    icon: "map",
+    entrypoints: ["canvas_selection", "chat_skill_panel", "natural_language"],
+    inputRequirements: {
+      optionalTextPrompt: true,
+      requiredFields: ["\u6D3B\u52A8/\u4EA7\u54C1", "\u76EE\u6807\u53D7\u4F17", "\u6838\u5FC3\u4FE1\u606F", "\u884C\u52A8\u53F7\u53EC"]
+    },
+    defaults: { format: "trifold_brochure", variantCount: 4 },
+    outputs: ["generation_jobs"],
+    capabilities: ["image_generation", "text_generation", "layout"],
+    priority: 6
+  }
+];
+function shapeArea(shape) {
+  return shape.bounds.w * shape.bounds.h;
+}
+function findPrimarySkillShape(state) {
+  const selectedImages = state.selection.shapes.filter(
+    (shape) => shape.role === "ai_image" || shape.type === "image"
+  );
+  if (selectedImages.length) return [...selectedImages].sort((a, b) => shapeArea(b) - shapeArea(a))[0];
+  return void 0;
+}
+function nearbyTextShapes(state, target) {
+  if (!target) return [];
+  const radius = 600;
+  const targetCenter = {
+    x: target.bounds.x + target.bounds.w / 2,
+    y: target.bounds.y + target.bounds.h / 2
+  };
+  return state.shapes.filter((shape) => {
+    if (!shape.text || shape.id === target.id) return false;
+    const center2 = {
+      x: shape.bounds.x + shape.bounds.w / 2,
+      y: shape.bounds.y + shape.bounds.h / 2
+    };
+    return Math.hypot(center2.x - targetCenter.x, center2.y - targetCenter.y) <= radius;
+  });
+}
+function buildCanvasContext(state) {
+  const primaryShape = findPrimarySkillShape(state);
+  return {
+    canvasId: state.canvasId,
+    pageId: state.metadata.activePageId,
+    storagePath: state.storagePath,
+    selection: {
+      selectedShapeIds: state.selection.selectedShapeIds,
+      primaryShape,
+      shapes: state.selection.shapes
+    },
+    nearby: {
+      texts: nearbyTextShapes(state, primaryShape),
+      images: state.shapes.filter((shape) => shape.type === "image" || shape.role === "ai_image"),
+      artboards: state.shapes.filter((shape) => shape.role === "artboard")
+    },
+    project: {}
+  };
+}
+function recommendationScore(skill, userRequest, hasImage) {
+  const text = userRequest.toLowerCase();
+  let score = 0.2;
+  const reasons = [];
+  if (skill.inputRequirements.requiresSelection && hasImage) {
+    score += 0.25;
+    reasons.push("\u5F53\u524D\u5DF2\u9009\u4E2D\u56FE\u7247");
+  }
+  if (skill.id === "xiaohongshu-cover" && /(小红书|种草|封面|社媒|social)/i.test(userRequest)) {
+    score += 0.55;
+    reasons.push("\u5339\u914D\u5C0F\u7EA2\u4E66/\u5C01\u9762\u610F\u56FE");
+  }
+  if (skill.id === "youtube-thumbnail" && /(youtube|油管|缩略图|thumbnail)/i.test(userRequest)) {
+    score += 0.55;
+    reasons.push("\u5339\u914D YouTube \u7F29\u7565\u56FE\u610F\u56FE");
+  }
+  if (skill.id === "cross-platform-adapt" && /(适配|平台|尺寸|比例|扩图|裁切|重构|公众号|推特|twitter|instagram|linkedin|story|reels)/i.test(
+    userRequest
+  )) {
+    score += 0.55;
+    reasons.push("\u5339\u914D\u5E73\u53F0\u5C3A\u5BF8\u9002\u914D\u610F\u56FE");
+  }
+  if (skill.id === "product-marketing-set" && /(产品|套图|卖点|主图|电商|amazon|亚马逊)/i.test(userRequest)) {
+    score += 0.5;
+    reasons.push("\u5339\u914D\u4EA7\u54C1\u8425\u9500\u7EC4\u56FE\u610F\u56FE");
+  }
+  if (skill.id === "logo-and-brand" && /(logo|品牌|标志|视觉识别|brand)/i.test(userRequest)) {
+    score += 0.5;
+    reasons.push("\u5339\u914D\u54C1\u724C\u610F\u56FE");
+  }
+  if (skill.id === "marketing-brochure" && /(营销|宣传册|折页|活动|推广|brochure|campaign|传单|flyer)/i.test(userRequest)) {
+    score += 0.5;
+    reasons.push("\u5339\u914D\u8425\u9500\u5BA3\u4F20\u518C\u610F\u56FE");
+  }
+  return {
+    confidence: Math.min(0.99, score),
+    reason: reasons.join("\uFF0C") || skill.description
+  };
+}
+function skillInputMissingReason(context, skill) {
+  if (!skill.inputRequirements.requiresSelection) return void 0;
+  const primaryShape = context.selection.primaryShape;
+  if (!primaryShape) return "\u8BF7\u5148\u9009\u4E2D\u4E00\u5F20\u56FE\u7247\u3002";
+  return void 0;
+}
+function recommendSkills(input) {
+  const state = statePayload();
+  const context = buildCanvasContext(state);
+  const hasImage = Boolean(context.selection.primaryShape);
+  const recommendations = builtinSkills.map((skill) => {
+    const score = recommendationScore(skill, input.userRequest ?? "", hasImage);
+    const missingReason = skillInputMissingReason(context, skill);
+    const missingInputs = missingReason ? [missingReason] : void 0;
+    return {
+      skillId: skill.id,
+      name: skill.name,
+      category: skill.category,
+      reason: score.reason,
+      confidence: missingInputs ? Math.min(score.confidence, 0.25) : score.confidence,
+      missingInputs,
+      disabledReason: skill.disabledReason
+    };
+  }).sort((a, b) => b.confidence - a.confidence).slice(0, input.maxResults ?? 5);
+  return { recommendations, context };
+}
+function skillRunPath(runId) {
+  if (!session) throw new Error("Canvas session is not open");
+  const safeId = runId.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const targetPath = path.join(session.storagePath, "skill-runs", `${safeId}.json`);
+  ensureInside(session.storagePath, targetPath);
+  return targetPath;
+}
+async function writeSkillRun(run) {
+  run.updatedAt = nowIso();
+  await writeJson(skillRunPath(run.runId), run);
+  return run;
+}
+async function readSkillRun(runId) {
+  return readJson(skillRunPath(runId));
+}
+function parseAspectRatio(aspectRatio) {
+  const [rawW, rawH] = aspectRatio.split(":").map((part) => Number(part));
+  if (Number.isFinite(rawW) && Number.isFinite(rawH) && rawW > 0 && rawH > 0) {
+    return rawW / rawH;
+  }
+  return 1;
+}
+function sizeForAspectRatio(aspectRatio, longSide = 420) {
+  const ratio = parseAspectRatio(aspectRatio);
+  if (ratio >= 1) return { w: longSide, h: Math.round(longSide / ratio) };
+  return { w: Math.round(longSide * ratio), h: longSide };
+}
+function skillPromptBase(skill, context, userRequest) {
+  const nearbyText = context.nearby.texts.map((shape) => shape.text).filter(Boolean).join(" / ");
+  return [
+    `Skill\uFF1A${skill.name}`,
+    context.selection.primaryShape ? `\u53C2\u8003\u56FE\u7247\uFF1A\u4F7F\u7528\u5F53\u524D\u9009\u4E2D\u7684\u753B\u5E03\u56FE\u7247\u3002` : void 0,
+    context.selection.primaryShape && !context.selection.primaryShape.assetPath ? `\u6CE8\u610F\uFF1A\u5F53\u524D\u53C2\u8003\u56FE\u6765\u81EA\u753B\u5E03\u666E\u901A\u56FE\u7247\u5BF9\u8C61\uFF0C\u4F18\u5148\u6309\u89C6\u89C9\u5185\u5BB9\u89C4\u5212\uFF1B\u5982\u540E\u7EED\u9700\u8981\u81EA\u52A8\u843D\u56FE\uFF0C\u5EFA\u8BAE\u7528\u62D6\u62FD\u3001\u7C98\u8D34\u6216\u9876\u90E8\u5BFC\u5165\u91CD\u65B0\u5BFC\u5165\u3002` : void 0,
+    nearbyText ? `\u753B\u5E03\u9644\u8FD1\u6587\u5B57\uFF1A${nearbyText}` : void 0,
+    userRequest ? `\u7528\u6237\u8865\u5145\u8981\u6C42\uFF1A${userRequest}` : void 0
+  ].filter(Boolean).join("\n");
+}
+function generationJobsForSkill(run, skill) {
+  const primary = run.context.selection.primaryShape;
+  if (!primary) return [];
+  const baseX = primary.bounds.x + primary.bounds.w + 80;
+  const baseY = primary.bounds.y;
+  const outputDir = path.join(run.context.storagePath, "assets/images");
+  const userRequest = typeof run.input.userRequest === "string" ? run.input.userRequest : void 0;
+  const basePrompt = skillPromptBase(skill, run.context, userRequest);
+  const jobs = [];
+  if (skill.id === "xiaohongshu-cover") {
+    const size = sizeForAspectRatio("3:4", Math.max(420, primary.bounds.h));
+    for (let index = 0; index < 3; index += 1) {
+      jobs.push({
+        jobId: `${run.runId}_job_${index + 1}`,
+        aspectRatio: "3:4",
+        outputDir,
+        outputName: `${run.runId}_xiaohongshu_${index + 1}.png`,
+        title: `\u5C0F\u7EA2\u4E66\u5C01\u9762 ${index + 1}`,
+        placement: { x: baseX + index * (size.w + 80), y: baseY, ...size },
+        note: index === 0 ? "\u6807\u9898\u6E05\u6670\uFF0C\u7A81\u51FA\u70B9\u51FB\u7406\u7531\u3002" : index === 1 ? "\u66F4\u751F\u6D3B\u65B9\u5F0F\uFF0C\u9002\u5408\u79CD\u8349\u5185\u5BB9\u3002" : "\u66F4\u9AD8\u7EA7\u514B\u5236\uFF0C\u5F3A\u8C03\u4E3B\u4F53\u8D28\u611F\u3002",
+        prompt: [
+          basePrompt,
+          `\u8BF7\u57FA\u4E8E\u53C2\u8003\u56FE\u7247\u751F\u6210\u5C0F\u7EA2\u4E66 3:4 \u5C01\u9762\u3002`,
+          `\u65B9\u5411 ${index + 1}\uFF1A${index === 0 ? "\u9AD8\u70B9\u51FB\u7387\u4E2D\u6587\u6807\u9898\u5F3A\u5316" : index === 1 ? "\u751F\u6D3B\u65B9\u5F0F\u79CD\u8349\u611F" : "\u9AD8\u7EA7\u514B\u5236\u8D28\u611F"}`,
+          `\u8981\u6C42\uFF1A\u4E3B\u4F53\u6E05\u6670\uFF0C\u4E2D\u6587\u6807\u9898\u77ED\u800C\u6709\u70B9\u51FB\u7406\u7531\uFF0C\u907F\u514D\u5EC9\u4EF7\u8425\u9500\u611F\u3001\u9519\u4E71\u6587\u5B57\u548C\u6C34\u5370\u3002`
+        ].join("\n")
+      });
+    }
+  }
+  if (skill.id === "youtube-thumbnail") {
+    const size = sizeForAspectRatio("16:9", 520);
+    for (let index = 0; index < 3; index += 1) {
+      jobs.push({
+        jobId: `${run.runId}_job_${index + 1}`,
+        aspectRatio: "16:9",
+        outputDir,
+        outputName: `${run.runId}_youtube_${index + 1}.png`,
+        title: `YouTube \u5C01\u9762 ${index + 1}`,
+        placement: { x: baseX + index * (size.w + 80), y: baseY, ...size },
+        note: index === 0 ? "\u5F3A\u4E3B\u4F53\u4E0E\u9AD8\u5BF9\u6BD4\u6807\u9898\u533A\u3002" : index === 1 ? "\u620F\u5267\u5316\u6784\u56FE\uFF0C\u5F3A\u5316\u70B9\u51FB\u60AC\u5FF5\u3002" : "\u66F4\u5E72\u51C0\u7684\u9891\u9053\u4E13\u4E1A\u611F\u3002",
+        prompt: [
+          basePrompt,
+          `\u8BF7\u57FA\u4E8E\u53C2\u8003\u56FE\u7247\u751F\u6210 YouTube 16:9 \u7F29\u7565\u56FE\u3002`,
+          `\u65B9\u5411 ${index + 1}\uFF1A${index === 0 ? "\u5F3A\u4E3B\u4F53\u9AD8\u5BF9\u6BD4" : index === 1 ? "\u70B9\u51FB\u60AC\u5FF5\u4E0E\u60C5\u7EEA" : "\u4E13\u4E1A\u9891\u9053\u8D28\u611F"}`,
+          `\u8981\u6C42\uFF1A\u7F29\u7565\u56FE\u5C0F\u5C3A\u5BF8\u4ECD\u53EF\u8BFB\uFF0C\u7559\u51FA\u5927\u6807\u9898\u7A7A\u95F4\uFF0C\u907F\u514D\u9519\u4E71\u6587\u5B57\u3001\u6C34\u5370\u548C\u6742\u4E71\u80CC\u666F\u3002`
+        ].join("\n")
+      });
+    }
+  }
+  if (skill.id === "cross-platform-adapt") {
+    let x = baseX;
+    CROSS_PLATFORM_SPECS.slice(0, 5).forEach((platform, index) => {
+      const size = sizeForAspectRatio(platform.aspectRatio, platform.longSide);
+      jobs.push({
+        jobId: `${run.runId}_job_${index + 1}`,
+        aspectRatio: platform.aspectRatio,
+        outputDir,
+        outputName: `${run.runId}_${platform.id}_${index + 1}.png`,
+        title: `${platform.name} ${platform.aspectRatio}`,
+        placement: { x, y: baseY, ...size },
+        note: `${platform.note} ${platform.safeArea}`,
+        prompt: [
+          basePrompt,
+          `\u8BF7\u5C06\u53C2\u8003\u56FE\u7247\u667A\u80FD\u9002\u914D\u4E3A ${platform.name} \u5E73\u53F0\u6210\u54C1\u89C6\u89C9\uFF0C\u6BD4\u4F8B ${platform.aspectRatio}\u3002`,
+          `\u5E73\u53F0\u6807\u51C6\uFF1A${platform.standard}`,
+          `\u5B89\u5168\u533A\uFF1A${platform.safeArea}`,
+          `\u6267\u884C\u8981\u6C42\uFF1A${platform.guidance.join(" ")}`,
+          `\u8981\u6C42\uFF1A\u4E3B\u4F53\u4E0D\u88AB\u88C1\u574F\uFF0C\u5FC5\u8981\u65F6\u6269\u56FE\u6216\u91CD\u6392\u80CC\u666F\uFF1B\u76F4\u63A5\u8F93\u51FA\u6700\u7EC8\u5149\u6805\u56FE\u7247\uFF0C\u4E0D\u8981\u751F\u6210\u7F16\u8F91\u6846\u3001\u5E73\u53F0 UI \u6216\u6C34\u5370\u3002`
+        ].join("\n")
+      });
+      x += size.w + 80;
+    });
+  }
+  return jobs;
+}
+function truncateForCanvas(text, maxLength = 560) {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1)}...`;
+}
+function actionPlanForSkillRun(run, skill, jobs) {
+  if (!jobs.length) return [];
+  const minX = Math.min(...jobs.map((job) => job.placement.x));
+  const minY = Math.min(...jobs.map((job) => job.placement.y));
+  const maxX = Math.max(...jobs.map((job) => job.placement.x + job.placement.w));
+  const titleWidth = Math.max(420, Math.min(1200, maxX - minX));
+  const actions = [
+    {
+      id: `${run.runId}_skill_summary`,
+      type: "place_note",
+      payload: {
+        shapeId: makeShapeId("skill_summary"),
+        x: minX,
+        y: minY - 132,
+        w: titleWidth,
+        h: 104,
+        skillRunId: run.runId,
+        text: [
+          `${skill.name} Skill \u4EFB\u52A1`,
+          `\u5DF2\u521B\u5EFA 1 \u4E2A Skill Run\uFF0C\u5305\u542B ${jobs.length} \u4E2A\u7248\u672C\u4EFB\u52A1\u3002`,
+          "\u4E0B\u4E00\u6B65\uFF1A\u6309\u8FD9\u4E9B\u63D0\u793A\u8BCD\u751F\u6210\u56FE\u7247\uFF0C\u518D\u628A\u7ED3\u679C\u56DE\u586B\u5230\u5BF9\u5E94\u753B\u677F\u3002"
+        ].join("\n")
+      }
+    }
+  ];
+  jobs.forEach((job, index) => {
+    const noteHeight = 220;
+    actions.push(
+      {
+        id: `${job.jobId}_artboard`,
+        type: "create_artboard",
+        payload: {
+          shapeId: makeShapeId("skill_artboard"),
+          x: job.placement.x,
+          y: job.placement.y,
+          w: job.placement.w,
+          h: job.placement.h,
+          title: `${index + 1}. ${job.title} (${job.aspectRatio})`,
+          aspectRatio: job.aspectRatio,
+          skillRunId: run.runId
+        }
+      },
+      {
+        id: `${job.jobId}_note`,
+        type: "place_note",
+        payload: {
+          shapeId: makeShapeId("skill_note"),
+          x: job.placement.x,
+          y: job.placement.y + job.placement.h + 20,
+          w: Math.max(360, Math.min(job.placement.w, 640)),
+          h: noteHeight,
+          skillRunId: run.runId,
+          text: [
+            `${index + 1}. ${job.title}`,
+            job.note ? `\u7B56\u7565\uFF1A${job.note}` : void 0,
+            `\u6BD4\u4F8B\uFF1A${job.aspectRatio}`,
+            `\u8F93\u51FA\u6587\u4EF6\uFF1A${job.outputName}`,
+            "",
+            "\u63D0\u793A\u8BCD\uFF1A",
+            truncateForCanvas(job.prompt)
+          ].filter(Boolean).join("\n")
+        }
+      }
+    );
+  });
+  actions.push({
+    id: `${run.runId}_save_snapshot`,
+    type: "save_snapshot",
+    payload: { skillRunId: run.runId }
+  });
+  return actions;
+}
+async function prepareSkillRun(body) {
+  const state = statePayload();
+  const skillId = String(body.skillId ?? "");
+  const skill = builtinSkills.find((item) => item.id === skillId);
+  if (!skill) throw new Error(`Unknown skill: ${skillId}`);
+  const context = buildCanvasContext(state);
+  const missingReason = skillInputMissingReason(context, skill);
+  const missingInputs = missingReason ? [missingReason] : [];
+  const runId = slugId("skillrun");
+  const createdAt = nowIso();
+  const run = {
+    runId,
+    skillId,
+    status: missingInputs.length || skill.disabled ? "needs_clarification" : "planning",
+    canvasId: state.canvasId,
+    input: {
+      userRequest: body.userRequest ? String(body.userRequest) : void 0,
+      defaults: skill.defaults
+    },
+    context,
+    createdAt,
+    updatedAt: createdAt
+  };
+  await writeSkillRun(run);
+  return {
+    runId,
+    skillId,
+    readyToRun: run.status === "planning",
+    summary: run.status === "planning" ? `\u5C06\u4F7F\u7528\u5F53\u524D\u9009\u4E2D\u7684\u56FE\u7247\u8FD0\u884C\u300C${skill.name}\u300D\u3002` : skill.disabledReason ?? "\u5F53\u524D\u8F93\u5165\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u8FD0\u884C Skill\u3002",
+    defaults: skill.defaults,
+    missingInputs: skill.disabledReason ? [skill.disabledReason] : missingInputs
+  };
+}
+async function runSkillRun(runId) {
+  const run = await readSkillRun(runId);
+  if (!run) throw new Error(`Skill run not found: ${runId}`);
+  const skill = builtinSkills.find((item) => item.id === run.skillId);
+  if (!skill) throw new Error(`Unknown skill: ${run.skillId}`);
+  if (skill.disabled) {
+    return writeSkillRun({
+      ...run,
+      status: "needs_clarification",
+      error: skill.disabledReason
+    });
+  }
+  const generationJobs = generationJobsForSkill(run, skill);
+  const actions = actionPlanForSkillRun(run, skill, generationJobs);
+  const nextRun = {
+    ...run,
+    status: generationJobs.length ? "requires_external_generation" : "needs_clarification",
+    generationJobs,
+    actions,
+    outputs: {
+      message: generationJobs.length ? "Skill \u5DF2\u521B\u5EFA 1 \u4E2A\u8FD0\u884C\u8BA1\u5212\uFF0C\u5E76\u5728\u753B\u5E03\u4E0A\u51C6\u5907\u7248\u672C\u4EFB\u52A1\u5361\u3002\u4E0B\u4E00\u6B65\u8BF7\u6309 generationJobs \u751F\u6210\u56FE\u7247\uFF0C\u518D\u7528 apply_canvas_actions \u6216 import_image_asset \u843D\u56DE\u753B\u5E03\u3002" : "\u5F53\u524D\u6CA1\u6709\u53EF\u7528\u56FE\u7247\u8F93\u5165\u3002"
+    }
+  };
+  return writeSkillRun(nextRun);
+}
+function briefString(value, fallback) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return trimmed || fallback;
+}
+function normalizeXiaohongshuBrief(body) {
+  const rawBrief = isRecord(body.brief) ? body.brief : {};
+  const extra = typeof body.userRequest === "string" ? body.userRequest.trim() : "";
+  return {
+    contentType: briefString(rawBrief.contentType, "\u4EBA\u50CF\u6C1B\u56F4"),
+    title: briefString(rawBrief.title, "\u9AD8\u7EA7\u611F\u5C01\u9762"),
+    titleStyle: briefString(rawBrief.titleStyle, "\u9AD8\u7EA7\u514B\u5236"),
+    textPlacement: briefString(rawBrief.textPlacement, "\u9876\u90E8\u5B89\u5168\u533A"),
+    focus: briefString(rawBrief.focus, "\u4E3B\u4F53\u6E05\u6670\u3001\u8D28\u611F\u5E72\u51C0"),
+    extra: extra || void 0
+  };
+}
+function normalizeYoutubeBrief(body) {
+  const rawBrief = isRecord(body.brief) ? body.brief : {};
+  const extra = typeof body.userRequest === "string" ? body.userRequest.trim() : "";
+  return {
+    videoTopic: briefString(rawBrief.videoTopic, "\u89C6\u9891\u6838\u5FC3\u4E3B\u9898"),
+    title: briefString(rawBrief.title, "\u4E00\u5B9A\u8981\u770B"),
+    audience: briefString(rawBrief.audience, "\u76EE\u6807\u89C2\u4F17"),
+    thumbnailStyle: briefString(rawBrief.thumbnailStyle, "\u9AD8\u5BF9\u6BD4\u5F3A\u4E3B\u4F53"),
+    textPlacement: briefString(rawBrief.textPlacement, "\u5DE6\u4FA7\u6807\u9898\u533A"),
+    focus: briefString(rawBrief.focus, "\u4EBA\u7269\u8138\u90E8\u3001\u4E3B\u4F53\u8F6E\u5ED3\u548C\u5173\u952E\u60C5\u7EEA"),
+    extra: extra || void 0
+  };
+}
+var CROSS_PLATFORM_SPECS = [
+  {
+    id: "xiaohongshu-cover",
+    name: "\u5C0F\u7EA2\u4E66 3:4",
+    aspectRatio: "3:4",
+    note: "\u7AD6\u7248\u9996\u56FE/\u5C01\u9762\uFF0C\u9002\u5408\u53D1\u73B0\u9875\u7011\u5E03\u6D41\u9884\u89C8\u3002",
+    longSide: 640,
+    standard: "\u5C0F\u7EA2\u4E66\u56FE\u6587\u5E38\u7528\u7AD6\u7248 3:4\uFF0C\u4E5F\u53EF\u517C\u5BB9 1:1 \u548C 4:3\uFF1B\u9996\u56FE\u51B3\u5B9A\u6574\u7BC7\u7B14\u8BB0\u7684\u89C6\u89C9\u6BD4\u4F8B\uFF0C\u7AD6\u7248\u66F4\u9002\u5408\u79FB\u52A8\u7AEF\u5360\u5C4F\u3002",
+    safeArea: "\u6807\u9898\u3001\u4EBA\u7269\u8138\u90E8\u3001\u4EA7\u54C1\u548C\u5173\u952E\u5356\u70B9\u5E94\u8FDC\u79BB\u56DB\u5468\u8FB9\u7F18\uFF0C\u9876\u90E8/\u5E95\u90E8\u81F3\u5C11\u4FDD\u7559 8% \u5B89\u5168\u8FB9\u8DDD\uFF0C\u907F\u514D\u7F29\u7565\u56FE\u548C\u88C1\u5207\u635F\u574F\u3002",
+    guidance: [
+      "\u4F18\u5148\u4FDD\u7559\u4E3B\u4F53\u8EAB\u4EFD\u3001\u8138\u90E8/\u4EA7\u54C1\u548C\u539F\u56FE\u98CE\u683C\uFF0C\u5FC5\u8981\u65F6\u5411\u4E0A\u4E0B\u6269\u56FE\u8865\u80CC\u666F\u3002",
+      "\u5982\u679C\u9700\u8981\u6587\u5B57\uFF0C\u53EA\u653E\u77ED\u6807\u9898\u6216\u5C11\u91CF\u8F85\u52A9\u6587\u5B57\uFF0C\u5E76\u505A\u6210\u5B8C\u6574\u5C01\u9762\u8BBE\u8BA1\uFF0C\u4E0D\u8981\u751F\u6210\u53EF\u7F16\u8F91\u6587\u5B57\u6846\u3002",
+      "\u753B\u9762\u8981\u9002\u5408\u5C0F\u5C3A\u5BF8\u7011\u5E03\u6D41\u5FEB\u901F\u8BC6\u522B\uFF0C\u907F\u514D\u8FC7\u5BC6\u4FE1\u606F\u548C\u5EC9\u4EF7\u4FC3\u9500\u611F\u3002"
+    ]
+  },
+  {
+    id: "instagram-feed",
+    name: "Instagram Feed 4:5",
+    aspectRatio: "4:5",
+    note: "\u79FB\u52A8\u7AEF\u4FE1\u606F\u6D41\u7AD6\u7248\uFF0C\u9002\u5408\u83B7\u53D6\u66F4\u5927\u5C4F\u5E55\u5360\u6BD4\u3002",
+    longSide: 640,
+    standard: "Instagram feed \u652F\u6301\u65B9\u56FE\u3001\u6A2A\u56FE\u548C\u7AD6\u56FE\uFF1B\u79FB\u52A8\u7AEF\u54C1\u724C\u5185\u5BB9\u5E38\u7528 4:5 \u7AD6\u56FE\uFF0C\u8BA9\u753B\u9762\u5728\u4FE1\u606F\u6D41\u4E2D\u5360\u636E\u66F4\u9AD8\u7A7A\u95F4\u3002",
+    safeArea: "\u628A\u4EBA\u7269\u8138\u90E8\u3001\u4EA7\u54C1\u3001Logo \u548C\u6807\u9898\u63A7\u5236\u5728\u753B\u9762\u4E2D\u592E\u5B89\u5168\u533A\uFF0C\u56DB\u5468\u81F3\u5C11\u7559 8% \u8FB9\u8DDD\uFF0C\u907F\u514D\u7F51\u683C\u9884\u89C8\u6216\u88C1\u5207\u5F71\u54CD\u91CD\u70B9\u3002",
+    guidance: [
+      "\u91CD\u6784\u4E3A\u5E72\u51C0\u7684\u79FB\u52A8\u4FE1\u606F\u6D41\u6784\u56FE\uFF0C\u4E3B\u4F53\u6BD4\u539F\u56FE\u66F4\u660E\u786E\u3002",
+      "\u80CC\u666F\u53EF\u4EE5\u6269\u5C55\u6216\u7B80\u5316\uFF0C\u4F46\u4E0D\u8981\u6539\u53D8\u4E3B\u4F53\u8EAB\u4EFD\u3001\u4EA7\u54C1\u5F62\u6001\u548C\u54C1\u724C\u8272\u8C03\u3002",
+      "\u9664\u975E\u7528\u6237\u660E\u786E\u8981\u6C42\u65B0\u589E\u6587\u6848\uFF0C\u5426\u5219\u4E0D\u8981\u6DFB\u52A0\u5E73\u53F0 UI\u3001\u6807\u7B7E\u3001\u6309\u94AE\u6216\u6C34\u5370\u3002"
+    ]
+  },
+  {
+    id: "instagram-story",
+    name: "Instagram Story/Reels 9:16",
+    aspectRatio: "9:16",
+    note: "\u5168\u5C4F\u7AD6\u7248\uFF0C\u9002\u5408 Story/Reels \u9884\u89C8\u548C\u7AD6\u5C4F\u5E7F\u544A\u3002",
+    longSide: 800,
+    standard: "Instagram Stories/Reels \u5E38\u7528 9:16 \u5168\u5C4F\u7AD6\u7248\uFF1B\u5E73\u53F0 UI \u4F1A\u5360\u7528\u9876\u90E8\u548C\u5E95\u90E8\u533A\u57DF\u3002",
+    safeArea: "\u9876\u90E8\u7EA6 14%\u3001\u5E95\u90E8\u7EA6 20% \u4E0D\u653E\u5173\u952E\u6587\u5B57\u3001Logo\u3001\u8138\u90E8\u3001\u4EA7\u54C1\u6216 CTA\uFF0C\u4E2D\u95F4\u533A\u57DF\u627F\u62C5\u4E3B\u89C6\u89C9\u3002",
+    guidance: [
+      "\u628A\u4E3B\u4F53\u653E\u5728\u4E2D\u95F4\u5B89\u5168\u533A\uFF0C\u5FC5\u8981\u65F6\u8FDB\u884C\u4E0A\u4E0B\u6269\u56FE\uFF0C\u800C\u4E0D\u662F\u62C9\u4F38\u539F\u56FE\u3002",
+      "\u9876\u90E8\u548C\u5E95\u90E8\u4FDD\u6301\u5E72\u51C0\u80CC\u666F\u6216\u4F4E\u4FE1\u606F\u533A\u57DF\uFF0C\u4FBF\u4E8E\u5E73\u53F0\u63A7\u4EF6\u8986\u76D6\u3002",
+      "\u5982\u679C\u8981\u52A0\u6587\u5B57\uFF0C\u653E\u5728\u4E2D\u90E8\u504F\u4E0A/\u504F\u4E0B\u5B89\u5168\u533A\uFF0C\u77ED\u53E5\u5927\u5B57\uFF0C\u4E0D\u8981\u8D34\u8FB9\u3002"
+    ]
+  },
+  {
+    id: "wechat-official-account",
+    name: "\u516C\u4F17\u53F7",
+    aspectRatio: "2.35:1",
+    note: "\u516C\u4F17\u53F7\u6587\u7AE0\u9996\u56FE\u6A2A\u5E45\uFF0C\u9002\u5408\u6587\u7AE0\u5217\u8868\u548C\u5206\u4EAB\u9884\u89C8\u3002",
+    longSide: 760,
+    standard: "\u516C\u4F17\u53F7\u6587\u7AE0\u9996\u56FE\u901A\u5E38\u9700\u8981\u6A2A\u5411\u5C01\u9762\u611F\uFF0C\u79FB\u52A8\u7AEF\u5217\u8868\u548C\u5206\u4EAB\u5361\u7247\u4F1A\u538B\u7F29\u9884\u89C8\uFF1B\u6807\u9898\u3001\u4E3B\u4F53\u548C\u54C1\u724C\u8BC6\u522B\u8981\u5728\u5C0F\u5C3A\u5BF8\u4E0B\u4ECD\u53EF\u8BFB\u3002",
+    safeArea: "\u4E3B\u4F53\u548C\u6807\u9898\u653E\u5728\u4E2D\u95F4\u5B89\u5168\u533A\uFF0C\u5DE6\u53F3\u8FB9\u7F18\u907F\u514D\u5173\u952E\u4FE1\u606F\uFF1B\u6807\u9898\u4E0D\u8981\u8D34\u9876\u8D34\u5E95\uFF0C\u56DB\u5468\u81F3\u5C11\u4FDD\u7559 8% \u5B89\u5168\u8FB9\u8DDD\u3002",
+    guidance: [
+      "\u91CD\u6784\u4E3A\u516C\u4F17\u53F7\u6587\u7AE0\u9996\u56FE\uFF0C\u4E3B\u4F53\u6E05\u695A\u3001\u6807\u9898\u533A\u57DF\u7A33\u5B9A\uFF0C\u9002\u5408\u77E5\u8BC6\u3001\u54C1\u724C\u6216\u6D3B\u52A8\u5185\u5BB9\u3002",
+      "\u5982\u679C\u7528\u6237\u8981\u6C42\u6807\u9898\uFF0C\u5FC5\u987B\u628A\u6807\u9898\u505A\u6210\u5C01\u9762\u8BBE\u8BA1\u7684\u4E00\u90E8\u5206\uFF0C\u6587\u5B57\u5B8C\u6574\u3001\u514B\u5236\u3001\u53EF\u8BFB\u3002",
+      "\u907F\u514D\u5EC9\u4EF7\u8425\u9500\u6A21\u677F\u3001\u8FC7\u591A\u5C0F\u5B57\u3001\u4E3B\u4F53\u592A\u5C0F\u6216\u6807\u9898\u88AB\u88C1\u5207\u3002"
+    ]
+  },
+  {
+    id: "twitter-article-cover",
+    name: "\u63A8\u7279\u6587\u7AE0\u5C01\u9762 5:2",
+    aspectRatio: "5:2",
+    note: "\u63A8\u7279\u6587\u7AE0\u5C01\u9762\u6A2A\u5E45\uFF0C\u9002\u5408\u94FE\u63A5\u5361\u7247\u3001\u957F\u6587\u6216\u8BDD\u9898\u9884\u89C8\u3002",
+    longSide: 760,
+    standard: "\u63A8\u7279/X \u6587\u7AE0\u6216\u94FE\u63A5\u5C01\u9762\u66F4\u9002\u5408\u5BBD\u6A2A\u5E45\u89C6\u89C9\uFF1B5:2 \u753B\u9762\u9700\u8981\u66F4\u5F3A\u6A2A\u5411\u6784\u56FE\u3001\u660E\u786E\u89C6\u89C9\u7126\u70B9\u548C\u7559\u767D\u6807\u9898\u533A\u3002",
+    safeArea: "\u4EBA\u7269\u3001\u4EA7\u54C1\u3001\u6807\u9898\u548C Logo \u4FDD\u6301\u5728\u4E2D\u95F4 80% \u533A\u57DF\uFF0C\u5DE6\u53F3\u8FB9\u7F18\u4E0D\u8981\u653E\u5173\u952E\u4FE1\u606F\uFF0C\u907F\u514D\u5361\u7247\u9884\u89C8\u88C1\u5207\u3002",
+    guidance: [
+      "\u91CD\u6784\u4E3A\u5BBD\u6A2A\u5E45\u5C01\u9762\uFF0C\u9002\u5408\u6587\u7AE0\u94FE\u63A5\u5361\u7247\u548C\u793E\u4EA4\u4F20\u64AD\u9884\u89C8\u3002",
+      "\u4E3B\u4F53\u8981\u660E\u786E\u4F46\u4E0D\u8981\u585E\u6EE1\u5168\u753B\u9762\uFF0C\u7559\u51FA\u53EF\u8BFB\u6807\u9898\u533A\u6216\u547C\u5438\u7A7A\u95F4\u3002",
+      "\u5982\u9700\u6587\u5B57\uFF0C\u4F7F\u7528\u77ED\u6807\u9898\u6216\u8BDD\u9898\u7EA7\u4FE1\u606F\uFF0C\u4E0D\u8981\u5806\u780C\u8BF4\u660E\u3001\u6309\u94AE\u6216\u5E73\u53F0 UI\u3002"
+    ]
+  },
+  {
+    id: "linkedin-square",
+    name: "LinkedIn \u65B9\u56FE 1:1",
+    aspectRatio: "1:1",
+    note: "LinkedIn \u65B9\u56FE\uFF0C\u684C\u9762\u548C\u79FB\u52A8\u7AEF\u90FD\u8F83\u7A33\u3002",
+    longSide: 640,
+    standard: "LinkedIn \u65B9\u56FE 1:1 \u5E38\u7528\u4E8E\u5355\u56FE\u5E7F\u544A\u548C\u52A8\u6001\u5185\u5BB9\uFF0C\u5E38\u89C1\u5C3A\u5BF8 1200x1200\uFF0C\u9002\u5408\u8DE8\u7AEF\u7A33\u5B9A\u5C55\u793A\u3002",
+    safeArea: "\u4E3B\u4F53\u3001\u54C1\u724C\u7B26\u53F7\u548C\u6807\u9898\u96C6\u4E2D\u5728\u4E2D\u5FC3 80% \u533A\u57DF\uFF0C\u907F\u514D\u5C0F\u5B57\u3001\u4E8C\u7EF4\u7801\u6216\u7EC6\u8282\u9760\u8FD1\u8FB9\u7F18\u3002",
+    guidance: [
+      "\u505A\u6210\u7B80\u6D01\u3001\u7A33\u5B9A\u3001\u4E13\u4E1A\u7684\u65B9\u56FE\u6784\u56FE\uFF0C\u4E3B\u4F53\u4E00\u773C\u53EF\u89C1\u3002",
+      "\u9002\u5408\u628A\u539F\u56FE\u53D8\u6210\u54C1\u724C\u89C2\u70B9\u3001\u4E13\u4E1A\u63D0\u793A\u6216\u4EA7\u54C1\u4EF7\u503C\u5C55\u793A\u3002",
+      "\u6587\u5B57\u4FDD\u6301\u77ED\u800C\u6E05\u6670\uFF0C\u4E0D\u80FD\u751F\u6210\u53EF\u7F16\u8F91\u8F93\u5165\u6846\u6216\u753B\u5E03 UI\u3002"
+    ]
+  }
+];
+var DEFAULT_CROSS_PLATFORM_IDS = [
+  "xiaohongshu-cover",
+  "instagram-feed",
+  "instagram-story",
+  "wechat-official-account",
+  "twitter-article-cover"
+];
+function normalizeCrossPlatformBrief(body) {
+  const rawBrief = isRecord(body.brief) ? body.brief : {};
+  const extra = typeof body.userRequest === "string" ? body.userRequest.trim() : "";
+  const requestedPlatforms = Array.isArray(rawBrief.platforms) ? rawBrief.platforms.map((item) => String(item)) : [];
+  const validIds = new Set(CROSS_PLATFORM_SPECS.map((spec) => spec.id));
+  const platforms = requestedPlatforms.filter((id) => validIds.has(id));
+  return {
+    campaignGoal: briefString(rawBrief.campaignGoal, ""),
+    platforms: platforms.length ? platforms : DEFAULT_CROSS_PLATFORM_IDS,
+    contentKind: briefString(rawBrief.contentKind, "\u901A\u7528\u89C6\u89C9"),
+    preserve: briefString(rawBrief.preserve, ""),
+    backgroundStrategy: briefString(rawBrief.backgroundStrategy, "\u667A\u80FD\u6269\u56FE\u5E76\u8865\u5E72\u51C0\u80CC\u666F"),
+    textPolicy: briefString(rawBrief.textPolicy, "\u4E0D\u65B0\u589E\u6587\u5B57\uFF0C\u53EA\u4FDD\u7559\u539F\u56FE\u5DF2\u6709\u6587\u5B57\u6216\u6309\u5E73\u53F0\u88C1\u5207\u91CD\u6784"),
+    extra: extra || void 0
+  };
+}
+function crossPlatformBriefGaps(brief) {
+  const missingInputs = [];
+  const clarificationQuestions = [];
+  if (!brief.campaignGoal) {
+    missingInputs.push("\u53D1\u5E03\u76EE\u6807");
+    clarificationQuestions.push("\u8FD9\u4E9B\u9002\u914D\u56FE\u4E3B\u8981\u7528\u4E8E\u4EC0\u4E48\u53D1\u5E03\u76EE\u6807\uFF1F\u4F8B\u5982\u65B0\u54C1\u9884\u70ED\u3001\u6559\u7A0B\u5206\u53D1\u3001\u5E7F\u544A\u6295\u653E\u6216\u54C1\u724C\u540C\u6B65\u53D1\u5E03\u3002");
+  }
+  if (!brief.preserve) {
+    missingInputs.push("\u5FC5\u987B\u4FDD\u7559");
+    clarificationQuestions.push("\u9002\u914D\u65F6\u54EA\u4E9B\u5185\u5BB9\u4E00\u5B9A\u4E0D\u80FD\u88AB\u88C1\u6389\u6216\u6539\u53D8\uFF1F\u4F8B\u5982\u4EBA\u7269\u8138\u90E8\u3001\u4EA7\u54C1\u8F6E\u5ED3\u3001Logo\u3001\u6587\u5B57\u6807\u9898\u6216\u539F\u6709\u8272\u8C03\u3002");
+  }
+  return {
+    missingInputs,
+    clarificationQuestions: clarificationQuestions.slice(0, 3)
+  };
+}
+function pendingCrossPlatformBriefJob(input) {
+  const size = sizeForAspectRatio("4:5", 420);
+  return {
+    jobId: `${input.requestId}_brief_pending`,
+    aspectRatio: "4:5",
+    outputDir: input.outputDir,
+    outputName: `${input.requestId}_cross_platform_brief_pending.png`,
+    title: "\u4E00\u952E\u8DE8\u5E73\u53F0\u9002\u914D\u7B80\u62A5\u5F85\u8865\u5145",
+    placement: {
+      x: input.baseX,
+      y: input.baseY,
+      ...size
+    },
+    note: `\u7F3A\u5C11\uFF1A${input.missingInputs.join("\u3001")}`,
+    brief: input.brief,
+    prompt: [
+      "\u8FD9\u662F\u4E00\u952E\u8DE8\u5E73\u53F0\u9002\u914D Skill \u7684\u5F85\u8865\u5145\u7B80\u62A5\uFF0C\u4E0D\u8981\u751F\u6210\u56FE\u7247\u3002",
+      `\u7F3A\u5C11\u4FE1\u606F\uFF1A${input.missingInputs.join("\u3001")}`,
+      `\u8BF7\u5148\u5411\u7528\u6237\u63D0\u95EE\uFF1A${input.clarificationQuestions.join(" / ")}`
+    ].join("\n")
+  };
+}
+var PRODUCT_MARKETING_PLATFORMS = {
+  amazon_listing: {
+    id: "amazon_listing",
+    name: "Amazon \u5546\u54C1\u9875 / A+",
+    standards: [
+      "\u4E3B\u56FE\u5FC5\u987B\u4F18\u5148\u5408\u89C4\uFF1A\u5E72\u51C0\u767D\u5E95\u3001\u4EA7\u54C1\u5B8C\u6574\u6E05\u6670\u3001\u4E0D\u8981\u53E0\u52A0\u6807\u9898/Logo/\u4FC3\u9500\u89D2\u6807/\u4EF7\u683C/\u8BC4\u5206/\u6C34\u5370\u3002",
+      "\u9644\u56FE\u53EF\u4EE5\u8BB2\u5356\u70B9\u3001\u7EC6\u8282\u3001\u5C3A\u5BF8\u3001\u4F7F\u7528\u573A\u666F\uFF0C\u4F46\u907F\u514D\u201Cbest-selling/top-rated\u201D\u3001\u4FDD\u4FEE\u3001\u4EF7\u683C\u3001\u4E8C\u7EF4\u7801\u3001\u8054\u7CFB\u65B9\u5F0F\u3001\u7ADE\u54C1\u6BD4\u8F83\u7B49\u654F\u611F\u5185\u5BB9\u3002",
+      "A+ \u5185\u5BB9\u9002\u5408\u56FE\u6587\u7ED3\u5408\u3001\u89C4\u683C\u8BF4\u660E\u3001\u6BD4\u8F83\u8868\u3001\u54C1\u724C\u6545\u4E8B\u548C\u5E38\u89C1\u95EE\u9898\uFF0C\u4F46\u753B\u9762\u8981\u907F\u514D\u4F4E\u6E05\u6670\u5EA6\u548C\u5938\u5927\u5BA3\u4F20\u3002"
+    ],
+    recipes: [
+      {
+        id: "main-image",
+        title: "Amazon \u4E3B\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u767D\u5E95\u5408\u89C4\u4E3B\u56FE\uFF0C\u65E0\u53E0\u5B57\u65E0\u9053\u5177\uFF0C\u4EA7\u54C1\u5B8C\u6574\u6E05\u6670\u3002",
+        guidance: [
+          "\u751F\u6210\u767D\u5E95\u5546\u54C1\u4E3B\u56FE\uFF0C\u4EA7\u54C1\u5360\u753B\u9762\u4E3B\u4F53\uFF0C\u8FB9\u7F18\u7559\u51FA\u5C11\u91CF\u5B89\u5168\u7A7A\u95F4\u3002",
+          "\u4E0D\u8981\u653E\u6587\u5B57\u3001Logo\u3001\u4EF7\u683C\u3001\u5FBD\u7AE0\u3001\u8BC4\u5206\u3001\u624B\u7ED8\u7BAD\u5934\u3001\u88C5\u9970\u8D34\u7EB8\u6216\u989D\u5916\u9053\u5177\u3002",
+          "\u4EA7\u54C1\u5F62\u72B6\u3001\u6750\u8D28\u3001\u989C\u8272\u5FC5\u987B\u6E05\u695A\uFF0C\u4E0D\u80FD\u88C1\u6389\u5173\u952E\u8F6E\u5ED3\u3002"
+        ]
+      },
+      {
+        id: "lifestyle-use",
+        title: "\u4F7F\u7528\u573A\u666F\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u5C55\u793A\u4EA7\u54C1\u5728\u771F\u5B9E\u751F\u6D3B/\u5DE5\u4F5C\u573A\u666F\u4E2D\u7684\u4F7F\u7528\u65B9\u5F0F\u3002",
+        guidance: [
+          "\u751F\u6210\u771F\u5B9E\u751F\u6D3B\u65B9\u5F0F\u573A\u666F\uFF0C\u8BA9\u76EE\u6807\u7528\u6237\u80FD\u7ACB\u523B\u7406\u89E3\u4F7F\u7528\u573A\u5408\u3002",
+          "\u4EA7\u54C1\u4ECD\u662F\u89C6\u89C9\u4E2D\u5FC3\uFF0C\u80CC\u666F\u670D\u52A1\u4E8E\u573A\u666F\uFF0C\u4E0D\u8981\u55A7\u5BBE\u593A\u4E3B\u3002",
+          "\u53EF\u4EE5\u6709\u4EBA\u7269\u6216\u624B\u90E8\u4F7F\u7528\uFF0C\u4F46\u4E0D\u8981\u6539\u53D8\u4EA7\u54C1\u6838\u5FC3\u5916\u89C2\u3002"
+        ]
+      },
+      {
+        id: "feature-callouts",
+        title: "\u6838\u5FC3\u5356\u70B9\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u7528\u5C11\u91CF\u5D4C\u5165\u5F0F\u6587\u6848\u89E3\u91CA 2-3 \u4E2A\u5356\u70B9\u3002",
+        guidance: [
+          "\u56F4\u7ED5\u7528\u6237\u63D0\u4F9B\u7684\u6838\u5FC3\u5356\u70B9\u505A\u4FE1\u606F\u56FE\u5F0F\u8BBE\u8BA1\uFF0C\u53EF\u52A0\u5165\u7B80\u77ED\u4E2D\u6587\u5356\u70B9\u6587\u5B57\u3002",
+          "\u6587\u5B57\u5FC5\u987B\u50CF\u6210\u54C1\u6D77\u62A5\u8BBE\u8BA1\u4E00\u6837\u5D4C\u5165\u56FE\u7247\uFF0C\u4E0D\u8981\u751F\u6210\u53EF\u7F16\u8F91\u8F93\u5165\u6846\u6216 UI \u63A7\u4EF6\u3002",
+          "\u907F\u514D\u4EF7\u683C\u3001\u6298\u6263\u3001\u4FDD\u4FEE\u627F\u8BFA\u3001\u5938\u5F20\u6392\u540D\u548C\u7ADE\u54C1\u6BD4\u8F83\u3002"
+        ]
+      },
+      {
+        id: "detail-closeup",
+        title: "\u7EC6\u8282 / \u6750\u8D28\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u7A81\u51FA\u7ED3\u6784\u3001\u6750\u8D28\u3001\u5DE5\u827A\u6216\u5173\u952E\u529F\u80FD\u7EC6\u8282\u3002",
+        guidance: [
+          "\u751F\u6210\u5C40\u90E8\u7EC6\u8282\u6216\u5FAE\u8DDD\u611F\u6784\u56FE\uFF0C\u5F3A\u8C03\u6750\u8D28\u3001\u7ED3\u6784\u3001\u63A5\u53E3\u3001\u7EB9\u7406\u6216\u5DE5\u827A\u3002",
+          "\u53EF\u4EE5\u7528\u7B80\u77ED\u6807\u6CE8\u89E3\u91CA\u7EC6\u8282\uFF0C\u4F46\u6587\u5B57\u6570\u91CF\u8981\u5C11\u4E14\u6E05\u6670\u3002",
+          "\u4E0D\u8981\u8BA9\u7EC6\u8282\u56FE\u770B\u8D77\u6765\u50CF\u4E0D\u771F\u5B9E\u7684\u62FC\u8D34\u3002"
+        ]
+      },
+      {
+        id: "scale-benefit",
+        title: "\u5C3A\u5BF8 / \u5BF9\u6BD4 / \u4FE1\u4EFB\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u5E2E\u52A9\u7528\u6237\u7406\u89E3\u5927\u5C0F\u3001\u4F7F\u7528\u6536\u76CA\u6216\u8D2D\u4E70\u7406\u7531\u3002",
+        guidance: [
+          "\u7528\u771F\u5B9E\u53C2\u7167\u7269\u3001\u4F7F\u7528\u524D\u540E\u573A\u666F\u6216\u7B80\u6D01\u5BF9\u6BD4\u5E2E\u52A9\u7528\u6237\u7406\u89E3\u4EA7\u54C1\u4EF7\u503C\u3002",
+          "\u4E0D\u8981\u548C\u7ADE\u54C1\u505A\u76F4\u63A5\u5BF9\u6BD4\uFF0C\u4E0D\u8981\u4F7F\u7528\u672A\u7ECF\u8BC1\u5B9E\u7684\u7EDD\u5BF9\u5316\u8425\u9500\u8BCD\u3002",
+          "\u753B\u9762\u4FE1\u606F\u5C42\u7EA7\u6E05\u695A\uFF0C\u4F18\u5148\u89E3\u51B3\u8D2D\u4E70\u7591\u95EE\u3002"
+        ]
+      },
+      {
+        id: "a-plus-module",
+        title: "A+ \u6A2A\u5E45\u6A21\u5757",
+        aspectRatio: "16:9",
+        longSide: 720,
+        note: "\u9002\u5408 A+ \u5185\u5BB9\u7684\u54C1\u724C/\u529F\u80FD\u6A2A\u5E45\u3002",
+        guidance: [
+          "\u751F\u6210\u6A2A\u5411 A+ \u5185\u5BB9\u6A21\u5757\uFF0C\u56FE\u7247\u4E0E\u5C11\u91CF\u8BF4\u660E\u6587\u5B57\u5E73\u8861\u3002",
+          "\u7A81\u51FA\u54C1\u724C\u8D28\u611F\u3001\u6838\u5FC3\u529F\u80FD\u548C\u4F7F\u7528\u4EF7\u503C\uFF0C\u9002\u5408\u5546\u54C1\u8BE6\u60C5\u9875\u5411\u4E0B\u6D4F\u89C8\u3002",
+          "\u907F\u514D\u4EF7\u683C\u3001\u4FC3\u9500\u3001\u4E8C\u7EF4\u7801\u3001\u8054\u7CFB\u65B9\u5F0F\u548C\u5938\u5F20\u627F\u8BFA\u3002"
+        ]
+      }
+    ]
+  },
+  shopify_store: {
+    id: "shopify_store",
+    name: "Shopify / \u72EC\u7ACB\u7AD9\u5546\u54C1\u9875",
+    standards: [
+      "\u5546\u54C1\u56FE\u7EC4\u8981\u4FDD\u6301\u4E00\u81F4\u7684\u5149\u7EBF\u3001\u673A\u4F4D\u3001\u88C1\u5207\u548C\u80CC\u666F\u98CE\u683C\uFF0C\u4FBF\u4E8E\u5728\u5546\u54C1\u9875\u548C\u96C6\u5408\u9875\u6D4F\u89C8\u3002",
+      "\u4E3B\u56FE\u5E94\u8BA9\u4EA7\u54C1\u6210\u4E3A\u7126\u70B9\uFF0C\u9644\u56FE\u8865\u5145\u89D2\u5EA6\u3001\u6750\u8D28\u3001\u7EC6\u8282\u3001\u4F7F\u7528\u65B9\u5F0F\u548C\u54C1\u724C\u6C1B\u56F4\u3002",
+      "\u6587\u5B57\u53EF\u4EE5\u7528\u4E8E\u5356\u70B9\u6A21\u5757\uFF0C\u4F46\u4E0D\u8981\u538B\u4F4F\u4EA7\u54C1\uFF0C\u4E0D\u8981\u8BA9\u6574\u7EC4\u56FE\u50CF\u98CE\u683C\u8DF3\u8DC3\u3002"
+    ],
+    recipes: [
+      {
+        id: "gallery-hero",
+        title: "\u72EC\u7ACB\u7AD9\u4E3B\u89C6\u89C9",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u5E72\u51C0\u5546\u54C1\u4E3B\u89C6\u89C9\uFF0C\u9002\u5408\u5546\u54C1\u9875\u9996\u56FE\u3002",
+        guidance: [
+          "\u751F\u6210\u5E72\u51C0\u3001\u53EF\u4FE1\u3001\u9002\u5408\u5546\u54C1\u9875\u9996\u56FE\u7684\u4EA7\u54C1\u82F1\u96C4\u56FE\u3002",
+          "\u5149\u7EBF\u67D4\u548C\u7A33\u5B9A\uFF0C\u80CC\u666F\u53BB\u9664\u5E72\u6270\uFF0C\u4EA7\u54C1\u8F6E\u5ED3\u5B8C\u6574\u3002",
+          "\u4FDD\u7559\u54C1\u724C\u8D28\u611F\uFF0C\u4E0D\u8981\u505A\u5EC9\u4EF7\u4FC3\u9500\u6D77\u62A5\u3002"
+        ]
+      },
+      {
+        id: "angle-detail",
+        title: "\u89D2\u5EA6 / \u7EC6\u8282\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u8865\u5145\u4E0D\u540C\u89D2\u5EA6\u3001\u6750\u8D28\u548C\u5173\u952E\u7ED3\u6784\u3002",
+        guidance: [
+          "\u751F\u6210\u540C\u4E00\u89C6\u89C9\u4F53\u7CFB\u4E0B\u7684\u89D2\u5EA6\u6216\u7EC6\u8282\u56FE\u3002",
+          "\u5F3A\u8C03\u6750\u8D28\u3001\u63A5\u53E3\u3001\u7EB9\u7406\u3001\u7ED3\u6784\u6216\u5305\u88C5\u7EC6\u8282\u3002",
+          "\u4FDD\u6301\u4E0E\u4E3B\u56FE\u4E00\u81F4\u7684\u5149\u7EBF\u3001\u8272\u8C03\u548C\u88C1\u5207\u3002"
+        ]
+      },
+      {
+        id: "lifestyle-scene",
+        title: "\u751F\u6D3B\u65B9\u5F0F\u56FE",
+        aspectRatio: "4:5",
+        longSide: 700,
+        note: "\u5C55\u793A\u76EE\u6807\u7528\u6237\u771F\u5B9E\u4F7F\u7528\u573A\u666F\u3002",
+        guidance: [
+          "\u751F\u6210\u9002\u5408\u76EE\u6807\u7528\u6237\u7684\u751F\u6D3B\u65B9\u5F0F\u4F7F\u7528\u573A\u666F\u3002",
+          "\u8BA9\u4EA7\u54C1\u878D\u5165\u771F\u5B9E\u73AF\u5883\uFF0C\u540C\u65F6\u4FDD\u6301\u4E3B\u4F53\u660E\u786E\u3002",
+          "\u907F\u514D\u8FC7\u5EA6\u6446\u62CD\u548C\u6742\u4E71\u80CC\u666F\u3002"
+        ]
+      },
+      {
+        id: "benefit-banner",
+        title: "\u5356\u70B9\u6A2A\u5E45",
+        aspectRatio: "16:9",
+        longSide: 720,
+        note: "\u9002\u5408\u5546\u54C1\u9875\u6A21\u5757\u7684\u56FE\u6587\u5356\u70B9\u6A2A\u5E45\u3002",
+        guidance: [
+          "\u751F\u6210\u72EC\u7ACB\u7AD9\u5546\u54C1\u9875\u5356\u70B9\u6A21\u5757\uFF0C\u53EF\u52A0\u5165 1-2 \u884C\u6E05\u6670\u4E2D\u6587\u5356\u70B9\u3002",
+          "\u6587\u5B57\u4E0E\u4EA7\u54C1\u5F62\u6210\u4E13\u4E1A\u7F51\u9875\u6A21\u5757\u6548\u679C\uFF0C\u4E0D\u8981\u751F\u6210\u6309\u94AE\u6216\u53EF\u70B9\u51FB UI\u3002",
+          "\u7559\u51FA\u8DB3\u591F\u547C\u5438\u611F\uFF0C\u9002\u5408\u7F51\u9875\u5411\u4E0B\u6EDA\u52A8\u9605\u8BFB\u3002"
+        ]
+      },
+      {
+        id: "use-case-grid",
+        title: "\u4F7F\u7528\u65B9\u5F0F / \u642D\u914D\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u8865\u5145\u4F7F\u7528\u65B9\u5F0F\u3001\u5957\u88C5\u642D\u914D\u6216\u5305\u88C5\u5C55\u793A\u3002",
+        guidance: [
+          "\u751F\u6210\u4F7F\u7528\u65B9\u5F0F\u3001\u642D\u914D\u7EC4\u5408\u6216\u5305\u88C5\u5C55\u793A\u56FE\u3002",
+          "\u5F3A\u8C03\u8D2D\u4E70\u540E\u80FD\u5F97\u5230\u4EC0\u4E48\u3001\u5982\u4F55\u4F7F\u7528\u3001\u9002\u5408\u4EC0\u4E48\u573A\u666F\u3002",
+          "\u6574\u7EC4\u98CE\u683C\u8981\u4E0E\u524D\u9762\u56FE\u7247\u4FDD\u6301\u4E00\u81F4\u3002"
+        ]
+      }
+    ]
+  },
+  meta_ads: {
+    id: "meta_ads",
+    name: "Meta \u5E7F\u544A",
+    standards: [
+      "\u4FE1\u606F\u6D41\u5355\u56FE\u4F18\u5148\u4F7F\u7528 4:5\uFF0C\u65B9\u56FE 1:1 \u9002\u5408\u66F4\u5E7F\u6CDB\u7248\u4F4D\uFF0CStory/Reels \u4F7F\u7528 9:16\u3002",
+      "\u5E7F\u544A\u56FE\u8981\u5FEB\u901F\u4F20\u8FBE\u4EA7\u54C1\u548C\u5229\u76CA\u70B9\uFF0C\u53EF\u9732\u51FA\u54C1\u724C\uFF0C\u4F46\u6587\u5B57\u8981\u5C11\u3001\u53EF\u8BFB\uFF0C\u5E76\u907F\u5F00\u8FB9\u7F18\u5B89\u5168\u533A\u3002",
+      "\u4F18\u5148\u5C55\u793A\u771F\u5B9E\u4EBA\u7269/\u573A\u666F\u4E2D\u7684\u4EA7\u54C1\u4F7F\u7528\uFF0C\u51CF\u5C11\u7EAF\u62FC\u8D34\u548C\u4F4E\u8D28\u4FC3\u9500\u6A21\u677F\u611F\u3002"
+    ],
+    recipes: [
+      {
+        id: "feed-4x5",
+        title: "Meta \u4FE1\u606F\u6D41 4:5",
+        aspectRatio: "4:5",
+        longSide: 700,
+        note: "\u79FB\u52A8\u4FE1\u606F\u6D41\u4E3B\u5E7F\u544A\u56FE\uFF0C\u4E3B\u4F53\u548C\u5229\u76CA\u70B9\u4E00\u773C\u53EF\u89C1\u3002",
+        guidance: [
+          "\u751F\u6210 4:5 \u79FB\u52A8\u4FE1\u606F\u6D41\u5E7F\u544A\u56FE\uFF0C\u4EA7\u54C1/\u4EBA\u7269\u4E3B\u4F53\u6E05\u695A\u3002",
+          "\u53EF\u4EE5\u52A0\u5165\u6781\u5C11\u91CF\u5229\u76CA\u70B9\u6587\u5B57\uFF0C\u4F46\u5FC5\u987B\u5B8C\u6574\u3001\u53EF\u8BFB\u3001\u8FDC\u79BB\u8FB9\u7F18\u3002",
+          "\u753B\u9762\u8981\u50CF\u771F\u5B9E\u54C1\u724C\u5E7F\u544A\uFF0C\u4E0D\u8981\u50CF\u7C97\u7CD9\u4FC3\u9500\u6A21\u677F\u3002"
+        ]
+      },
+      {
+        id: "square-1x1",
+        title: "Meta \u65B9\u56FE 1:1",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u9002\u914D\u65B9\u56FE\u7248\u4F4D\u548C\u518D\u8425\u9500\u7D20\u6750\u3002",
+        guidance: [
+          "\u751F\u6210 1:1 \u65B9\u56FE\u5E7F\u544A\u7D20\u6750\uFF0C\u4EA7\u54C1\u7126\u70B9\u660E\u786E\u3002",
+          "\u6784\u56FE\u7B80\u6D01\uFF0C\u9002\u5408\u5728\u5C0F\u5C3A\u5BF8\u9884\u89C8\u4E2D\u5FEB\u901F\u8BC6\u522B\u3002",
+          "\u6587\u5B57\u5C11\u4E8E\u753B\u9762\u4E3B\u8981\u4FE1\u606F\uFF0C\u4E0D\u8981\u5806\u6EE1\u5356\u70B9\u3002"
+        ]
+      },
+      {
+        id: "story-9x16",
+        title: "Story / Reels 9:16",
+        aspectRatio: "9:16",
+        longSide: 800,
+        note: "\u5168\u5C4F\u7AD6\u7248\u5E7F\u544A\u56FE\uFF0C\u907F\u5F00\u9876\u90E8/\u5E95\u90E8 UI \u533A\u3002",
+        guidance: [
+          "\u751F\u6210 9:16 \u5168\u5C4F\u7AD6\u7248\u5E7F\u544A\uFF0C\u9876\u90E8\u548C\u5E95\u90E8\u4FDD\u7559\u5B89\u5168\u7A7A\u95F4\u3002",
+          "\u4E3B\u4F53\u5782\u76F4\u5C45\u4E2D\u6216\u7565\u504F\u4E0A\uFF0C\u907F\u514D\u88AB\u5E73\u53F0 UI \u906E\u6321\u3002",
+          "\u53EF\u4EE5\u7528\u7B80\u77ED\u5229\u76CA\u70B9\uFF0C\u4F46\u4E0D\u8981\u653E\u5728\u6700\u9876\u7AEF\u6216\u6700\u5E95\u7AEF\u3002"
+        ]
+      },
+      {
+        id: "ugc-lifestyle",
+        title: "UGC \u751F\u6D3B\u5316\u56FE",
+        aspectRatio: "4:5",
+        longSide: 700,
+        note: "\u66F4\u771F\u5B9E\u7684\u751F\u6D3B\u65B9\u5F0F\u5E7F\u544A\u65B9\u5411\u3002",
+        guidance: [
+          "\u751F\u6210\u771F\u5B9E\u751F\u6D3B\u5316\u4F7F\u7528\u753B\u9762\uFF0C\u964D\u4F4E\u786C\u5E7F\u611F\u3002",
+          "\u8BA9\u76EE\u6807\u7528\u6237\u611F\u5230\u201C\u8FD9\u4E2A\u4EA7\u54C1\u9002\u5408\u6211\u201D\uFF0C\u4E0D\u662F\u53EA\u5C55\u793A\u5546\u54C1\u3002",
+          "\u753B\u9762\u4ECD\u9700\u6E05\u695A\u5448\u73B0\u4EA7\u54C1\u5916\u89C2\u548C\u6838\u5FC3\u4F7F\u7528\u6536\u76CA\u3002"
+        ]
+      }
+    ]
+  },
+  google_display: {
+    id: "google_display",
+    name: "Google \u5C55\u793A\u5E7F\u544A",
+    standards: [
+      "\u5E38\u7528\u54CD\u5E94\u5F0F\u5C55\u793A\u5E7F\u544A\u56FE\u7247\u6BD4\u4F8B\u5305\u62EC 1.91:1\u30011:1 \u548C 9:16\uFF0C\u5BF9\u5E94\u63A8\u8350\u5C3A\u5BF8 1200x628\u30011200x1200\u3001900x1600\u3002",
+      "\u907F\u514D\u5728\u56FE\u7247\u4E0A\u53E0\u52A0\u6587\u5B57\u3001Logo \u548C\u6309\u94AE\uFF1B\u4EA7\u54C1\u6216\u670D\u52A1\u5E94\u6210\u4E3A\u7126\u70B9\uFF0C\u4E0D\u8981\u505A\u62FC\u8D34\u548C\u8BEF\u5BFC\u6027\u6309\u94AE\u3002",
+      "\u56FE\u7247\u8981\u9AD8\u6E05\u3001\u81EA\u7136\u3001\u4E0D\u6B6A\u659C\u3001\u4E0D\u8FC7\u6EE4\uFF0C\u7559\u767D\u4E0D\u80FD\u538B\u8FC7\u4E3B\u4F53\u3002"
+    ],
+    recipes: [
+      {
+        id: "landscape-191",
+        title: "Google \u6A2A\u56FE 1.91:1",
+        aspectRatio: "1.91:1",
+        longSide: 760,
+        note: "\u54CD\u5E94\u5F0F\u5C55\u793A\u5E7F\u544A\u6A2A\u56FE\uFF0C\u51CF\u5C11\u53E0\u5B57\uFF0C\u4EA7\u54C1\u6E05\u695A\u3002",
+        guidance: [
+          "\u751F\u6210 1.91:1 \u6A2A\u5411\u5C55\u793A\u5E7F\u544A\u56FE\u7247\uFF0C\u4EA7\u54C1\u6216\u670D\u52A1\u662F\u753B\u9762\u7126\u70B9\u3002",
+          "\u4E0D\u8981\u53E0\u52A0\u6587\u5B57\u3001Logo\u3001\u6309\u94AE\u3001\u8FB9\u6846\u6216\u4FC3\u9500\u8D34\u7EB8\u3002",
+          "\u80CC\u666F\u81EA\u7136\u53EF\u4FE1\uFF0C\u907F\u514D\u6570\u5B57\u5408\u6210\u611F\u548C\u62FC\u8D34\u611F\u3002"
+        ]
+      },
+      {
+        id: "square-1x1",
+        title: "Google \u65B9\u56FE 1:1",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u54CD\u5E94\u5F0F\u5C55\u793A\u5E7F\u544A\u65B9\u56FE\uFF0C\u9002\u914D\u66F4\u591A\u7248\u4F4D\u3002",
+        guidance: [
+          "\u751F\u6210 1:1 \u5C55\u793A\u5E7F\u544A\u56FE\u7247\uFF0C\u4E3B\u4F53\u6E05\u695A\u4E14\u4E0D\u9760\u8FB9\u3002",
+          "\u4E0D\u8981\u628A\u5E7F\u544A\u6587\u6848\u538B\u8FDB\u56FE\u7247\uFF1B\u8BA9\u56FE\u7247\u627F\u62C5\u89C6\u89C9\u5438\u5F15\uFF0C\u6587\u6848\u4EA4\u7ED9\u5E7F\u544A\u6807\u9898\u3002",
+          "\u4FDD\u6301\u9AD8\u6E05\u3001\u81EA\u7136\u8272\u5F69\u548C\u5B8C\u6574\u4EA7\u54C1\u8F6E\u5ED3\u3002"
+        ]
+      },
+      {
+        id: "portrait-9x16",
+        title: "Google \u7AD6\u56FE 9:16",
+        aspectRatio: "9:16",
+        longSide: 800,
+        note: "\u54CD\u5E94\u5F0F\u7AD6\u7248\u7D20\u6750\uFF0C\u9002\u5408\u79FB\u52A8\u7AEF\u5C55\u793A\u3002",
+        guidance: [
+          "\u751F\u6210 9:16 \u7AD6\u7248\u5C55\u793A\u5E7F\u544A\u7D20\u6750\uFF0C\u4E3B\u4F53\u5360\u6BD4\u9002\u4E2D\u3002",
+          "\u4E0D\u8981\u53E0\u52A0\u6309\u94AE\u6216\u5927\u91CF\u6587\u5B57\uFF0C\u907F\u514D\u8FB9\u7F18\u88AB\u88C1\u5207\u3002",
+          "\u4FDD\u7559\u81EA\u7136\u6444\u5F71\u611F\uFF0C\u4E0D\u4F7F\u7528\u5EC9\u4EF7\u5408\u6210\u80CC\u666F\u3002"
+        ]
+      }
+    ]
+  },
+  general_ecommerce: {
+    id: "general_ecommerce",
+    name: "\u901A\u7528\u7535\u5546\u5957\u56FE",
+    standards: [
+      "\u5957\u56FE\u8981\u8986\u76D6\u4E3B\u56FE\u3001\u4F7F\u7528\u573A\u666F\u3001\u6838\u5FC3\u5356\u70B9\u3001\u7EC6\u8282\u6750\u8D28\u548C\u4FE1\u4EFB/\u5BF9\u6BD4\u4FE1\u606F\u3002",
+      "\u6587\u5B57\u53EA\u5728\u5356\u70B9\u56FE\u4E2D\u5C11\u91CF\u4F7F\u7528\uFF0C\u5E76\u76F4\u63A5\u878D\u5165\u6210\u54C1\u56FE\u7247\uFF1B\u4E3B\u56FE\u548C\u573A\u666F\u56FE\u4F18\u5148\u4FDD\u6301\u5E72\u51C0\u3002",
+      "\u6574\u7EC4\u56FE\u4FDD\u6301\u7EDF\u4E00\u8272\u8C03\u3001\u5149\u7EBF\u3001\u54C1\u724C\u8BED\u6C14\u548C\u4EA7\u54C1\u5916\u89C2\uFF0C\u907F\u514D\u6BCF\u5F20\u90FD\u50CF\u4E0D\u540C\u54C1\u724C\u3002"
+    ],
+    recipes: [
+      {
+        id: "clean-hero",
+        title: "\u4EA7\u54C1\u4E3B\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u5E72\u51C0\u53EF\u4FE1\u7684\u4EA7\u54C1\u4E3B\u89C6\u89C9\u3002",
+        guidance: [
+          "\u751F\u6210\u5E72\u51C0\u4EA7\u54C1\u4E3B\u89C6\u89C9\uFF0C\u4EA7\u54C1\u8F6E\u5ED3\u5B8C\u6574\u3001\u6750\u8D28\u6E05\u6670\u3002",
+          "\u80CC\u666F\u4F4E\u5E72\u6270\uFF0C\u9002\u5408\u7535\u5546\u9996\u56FE\u6216\u5546\u54C1\u5361\u7247\u3002",
+          "\u4E0D\u8981\u53E0\u52A0\u5927\u6BB5\u6587\u5B57\u548C\u4FC3\u9500\u5143\u7D20\u3002"
+        ]
+      },
+      {
+        id: "lifestyle",
+        title: "\u751F\u6D3B\u65B9\u5F0F\u56FE",
+        aspectRatio: "4:5",
+        longSide: 700,
+        note: "\u5C55\u793A\u4EA7\u54C1\u5728\u771F\u5B9E\u76EE\u6807\u4EBA\u7FA4\u751F\u6D3B\u4E2D\u7684\u4F7F\u7528\u65B9\u5F0F\u3002",
+        guidance: [
+          "\u751F\u6210\u76EE\u6807\u7528\u6237\u771F\u5B9E\u4F1A\u4F7F\u7528\u7684\u751F\u6D3B\u65B9\u5F0F\u573A\u666F\u3002",
+          "\u4EA7\u54C1\u4E0E\u73AF\u5883\u5173\u7CFB\u81EA\u7136\uFF0C\u7A81\u51FA\u4F7F\u7528\u4EF7\u503C\u3002",
+          "\u907F\u514D\u5047\u5927\u7A7A\u80CC\u666F\u548C\u65E0\u5173\u88C5\u9970\u3002"
+        ]
+      },
+      {
+        id: "benefit",
+        title: "\u6838\u5FC3\u5356\u70B9\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u7528\u6E05\u6670\u89C6\u89C9\u5C42\u7EA7\u8868\u8FBE 1-3 \u4E2A\u6838\u5FC3\u5356\u70B9\u3002",
+        guidance: [
+          "\u56F4\u7ED5\u6838\u5FC3\u5356\u70B9\u505A\u6210\u54C1\u4FE1\u606F\u56FE\uFF0C\u53EF\u4F7F\u7528\u7B80\u77ED\u4E2D\u6587\u5356\u70B9\u6587\u5B57\u3002",
+          "\u6587\u5B57\u8981\u50CF\u4E13\u4E1A\u7535\u5546\u56FE\u8BBE\u8BA1\uFF0C\u5B57\u4F53\u3001\u914D\u8272\u3001\u56FE\u6807\u548C\u6392\u7248\u76F4\u63A5\u878D\u5165\u56FE\u7247\u3002",
+          "\u4E0D\u8981\u751F\u6210\u53EF\u7F16\u8F91\u8F93\u5165\u6846\u3001\u9009\u4E2D\u6846\u6216\u753B\u5E03 UI\u3002"
+        ]
+      },
+      {
+        id: "detail",
+        title: "\u7EC6\u8282\u6750\u8D28\u56FE",
+        aspectRatio: "1:1",
+        longSide: 640,
+        note: "\u5F3A\u5316\u8D28\u611F\u3001\u6750\u6599\u3001\u7ED3\u6784\u548C\u5173\u952E\u529F\u80FD\u3002",
+        guidance: [
+          "\u751F\u6210\u7EC6\u8282\u6216\u5C40\u90E8\u7279\u5199\uFF0C\u7A81\u51FA\u6750\u8D28\u548C\u5DE5\u827A\u3002",
+          "\u5FC5\u8981\u65F6\u52A0\u5C11\u91CF\u6807\u6CE8\uFF0C\u4F46\u4E0D\u8981\u906E\u6321\u4EA7\u54C1\u7EC6\u8282\u3002",
+          "\u753B\u9762\u5E94\u6E05\u6670\u53EF\u4FE1\uFF0C\u4E0D\u8981\u8FC7\u5EA6\u9510\u5316\u6216\u5851\u6599\u611F\u3002"
+        ]
+      },
+      {
+        id: "trust",
+        title: "\u4FE1\u4EFB / \u8D2D\u4E70\u7406\u7531\u56FE",
+        aspectRatio: "16:9",
+        longSide: 720,
+        note: "\u603B\u7ED3\u8D2D\u4E70\u7406\u7531\u3001\u9002\u7528\u4EBA\u7FA4\u6216\u573A\u666F\u4EF7\u503C\u3002",
+        guidance: [
+          "\u751F\u6210\u6A2A\u5411\u603B\u7ED3\u56FE\uFF0C\u8868\u8FBE\u9002\u7528\u4EBA\u7FA4\u3001\u6838\u5FC3\u8D2D\u4E70\u7406\u7531\u6216\u573A\u666F\u6536\u76CA\u3002",
+          "\u53EF\u4EE5\u52A0\u5165\u7B80\u77ED\u4E2D\u6587\u6807\u9898\u548C 2-3 \u4E2A\u5229\u76CA\u70B9\uFF0C\u4F46\u907F\u514D\u5938\u5F20\u627F\u8BFA\u3002",
+          "\u6574\u4F53\u50CF\u54C1\u724C\u5546\u54C1\u9875\u6A21\u5757\uFF0C\u800C\u4E0D\u662F\u4F4E\u4EF7\u4FC3\u9500\u56FE\u3002"
+        ]
+      }
+    ]
+  }
+};
+function normalizeProductMarketingBrief(body) {
+  const rawBrief = isRecord(body.brief) ? body.brief : {};
+  const extra = typeof body.userRequest === "string" ? body.userRequest.trim() : "";
+  const platform = String(rawBrief.platform ?? "general_ecommerce");
+  const imageCountValue = String(rawBrief.imageCount ?? "platform_default");
+  const imageCountNumber = Number(imageCountValue);
+  return {
+    platform: platform in PRODUCT_MARKETING_PLATFORMS ? platform : "general_ecommerce",
+    productName: briefString(rawBrief.productName, ""),
+    targetAudience: briefString(rawBrief.targetAudience, ""),
+    sellingPoints: briefString(rawBrief.sellingPoints, ""),
+    brandTone: briefString(rawBrief.brandTone, "\u5E72\u51C0\u4E13\u4E1A"),
+    imageCount: Number.isInteger(imageCountNumber) && imageCountNumber >= 1 ? Math.min(6, Math.max(1, imageCountNumber)) : "platform_default",
+    extra: extra || void 0
+  };
+}
+function productMarketingBriefGaps(brief) {
+  const missingInputs = [];
+  const clarificationQuestions = [];
+  if (!brief.productName) {
+    missingInputs.push("\u4EA7\u54C1\u540D\u79F0/\u54C1\u7C7B");
+    clarificationQuestions.push("\u8FD9\u4E2A\u4EA7\u54C1\u7684\u51C6\u786E\u540D\u79F0\u6216\u54C1\u7C7B\u662F\u4EC0\u4E48\uFF1F");
+  }
+  if (!brief.targetAudience) {
+    missingInputs.push("\u76EE\u6807\u7528\u6237");
+    clarificationQuestions.push("\u4E3B\u8981\u5356\u7ED9\u8C01\uFF1F\u8BF7\u7ED9\u4E00\u4E2A\u5177\u4F53\u4EBA\u7FA4\u6216\u4F7F\u7528\u573A\u666F\u3002");
+  }
+  if (!brief.sellingPoints) {
+    missingInputs.push("\u6838\u5FC3\u5356\u70B9");
+    clarificationQuestions.push("\u6700\u60F3\u8BA9\u7528\u6237\u8BB0\u4F4F\u54EA 1-3 \u4E2A\u5356\u70B9\uFF1F");
+  }
+  return {
+    missingInputs,
+    clarificationQuestions: clarificationQuestions.slice(0, 3)
+  };
+}
+function productMarketingPrompt(input) {
+  return [
+    skillPromptBase(input.skill, input.context, input.userRequest),
+    `\u8BF7\u57FA\u4E8E\u53C2\u8003\u56FE\u7247\u751F\u6210\u300C${input.platform.name}\u300D\u4EA7\u54C1\u8425\u9500\u5957\u56FE\u4E2D\u7684\u7B2C ${input.index + 1}/${input.total} \u5F20\u6210\u54C1\u56FE\uFF1A${input.spec.title}\u3002`,
+    `\u5E73\u53F0/\u573A\u666F\uFF1A${input.platform.name}\u3002\u6BD4\u4F8B\uFF1A${input.spec.aspectRatio}\u3002`,
+    `\u4EA7\u54C1\uFF1A${input.brief.productName}\u3002\u76EE\u6807\u7528\u6237\uFF1A${input.brief.targetAudience}\u3002`,
+    `\u6838\u5FC3\u5356\u70B9\uFF1A${input.brief.sellingPoints}\u3002\u89C6\u89C9\u8BED\u6C14\uFF1A${input.brief.brandTone}\u3002`,
+    input.brief.extra ? `\u8865\u5145\u8981\u6C42\uFF1A${input.brief.extra}\u3002` : void 0,
+    `\u5E73\u53F0\u6807\u51C6\uFF1A${input.platform.standards.join(" ")}`,
+    `\u672C\u5F20\u56FE\u7247\u76EE\u6807\uFF1A${input.spec.note}`,
+    `\u672C\u5F20\u6267\u884C\u8981\u6C42\uFF1A${input.spec.guidance.join(" ")}`,
+    `\u5957\u56FE\u4E00\u81F4\u6027\uFF1A\u4FDD\u6301\u4EA7\u54C1\u5916\u89C2\u3001\u54C1\u724C\u6C14\u8D28\u3001\u5149\u7EBF\u3001\u8272\u8C03\u548C\u6750\u8D28\u8868\u8FBE\u4E00\u81F4\uFF1B\u4E0D\u540C\u56FE\u7247\u627F\u62C5\u4E0D\u540C\u9500\u552E\u4EFB\u52A1\uFF0C\u4E0D\u8981\u6BCF\u5F20\u91CD\u590D\u540C\u4E00\u79CD\u6784\u56FE\u3002`,
+    `\u6210\u54C1\u8981\u6C42\uFF1A\u76F4\u63A5\u8F93\u51FA\u6700\u7EC8\u53EF\u7528\u7684\u5149\u6805\u56FE\u7247\uFF0C\u82E5\u9700\u8981\u6807\u9898/\u5356\u70B9\u6587\u5B57\uFF0C\u5FC5\u987B\u4F5C\u4E3A\u56FE\u7247\u8BBE\u8BA1\u7684\u4E00\u90E8\u5206\u751F\u6210\u5728\u753B\u9762\u91CC\uFF1B\u4E0D\u8981\u751F\u6210\u53EF\u7F16\u8F91\u8F93\u5165\u6846\u3001\u9009\u4E2D\u6846\u3001\u753B\u5E03 UI\u3001\u5360\u4F4D\u6846\u6216\u5355\u72EC\u6587\u5B57\u5C42\u3002`,
+    `\u8D28\u91CF\u8981\u6C42\uFF1A\u9AD8\u6E05\u3001\u4E3B\u4F53\u5B8C\u6574\u3001\u4EA7\u54C1\u4E0D\u53D8\u5F62\u3001\u6587\u5B57\u5B8C\u6574\u53EF\u8BFB\u3001\u8FB9\u7F18\u7559\u5B89\u5168\u7A7A\u95F4\u3001\u4E0D\u8981\u6C34\u5370\u3001\u4E0D\u8981\u4E71\u7801\u6587\u5B57\u3001\u4E0D\u8981\u4E0D\u5B9E\u5938\u5F20\u627F\u8BFA\u3002`
+  ].filter(Boolean).join("\n");
+}
+function productMarketingJobs(input) {
+  const platform = PRODUCT_MARKETING_PLATFORMS[input.brief.platform];
+  const count = input.brief.imageCount === "platform_default" ? platform.recipes.length : Math.min(input.brief.imageCount, platform.recipes.length);
+  let x = input.baseX;
+  return platform.recipes.slice(0, count).map((spec, index) => {
+    const size = sizeForAspectRatio(spec.aspectRatio, spec.longSide);
+    const job = {
+      jobId: `${input.requestId}_job_${index + 1}`,
+      aspectRatio: spec.aspectRatio,
+      outputDir: input.outputDir,
+      outputName: `${input.requestId}_${spec.id}.png`,
+      title: spec.title,
+      placement: {
+        x,
+        y: input.baseY,
+        ...size
+      },
+      note: `${platform.name}\uFF1A${spec.note}`,
+      brief: input.brief,
+      prompt: productMarketingPrompt({
+        context: input.context,
+        skill: input.skill,
+        userRequest: input.userRequest,
+        brief: input.brief,
+        platform,
+        spec,
+        index,
+        total: count
+      })
+    };
+    x += size.w + 80;
+    return job;
+  });
+}
+function pendingProductBriefJob(input) {
+  const size = sizeForAspectRatio("1:1", 420);
+  return {
+    jobId: `${input.requestId}_brief_pending`,
+    aspectRatio: "1:1",
+    outputDir: input.outputDir,
+    outputName: `${input.requestId}_brief_pending.png`,
+    title: "\u4EA7\u54C1\u8425\u9500\u7EC4\u56FE\u7B80\u62A5\u5F85\u8865\u5145",
+    placement: {
+      x: input.baseX,
+      y: input.baseY,
+      ...size
+    },
+    note: `\u7F3A\u5C11\uFF1A${input.missingInputs.join("\u3001")}`,
+    brief: input.brief,
+    prompt: [
+      "\u8FD9\u662F\u4EA7\u54C1\u8425\u9500\u7EC4\u56FE\u7684\u5F85\u8865\u5145\u7B80\u62A5\uFF0C\u4E0D\u8981\u751F\u6210\u56FE\u7247\u3002",
+      `\u7F3A\u5C11\u4FE1\u606F\uFF1A${input.missingInputs.join("\u3001")}`,
+      `\u8BF7\u5148\u5411\u7528\u6237\u63D0\u95EE\uFF1A${input.clarificationQuestions.join(" / ")}`
+    ].join("\n")
+  };
+}
+var LOGO_BRAND_STANDARDS = [
+  "\u54C1\u724C\u6307\u5357\u8981\u628A Logo\u3001\u5B57\u4F53\u3001\u989C\u8272\u3001\u5F71\u50CF\u3001\u8BED\u6C14\u548C\u4F7F\u7528\u89C4\u5219\u7EDF\u4E00\u8D77\u6765\uFF0C\u786E\u4FDD\u4E0D\u540C\u89E6\u70B9\u4FDD\u6301\u4E00\u81F4\u3002",
+  "\u54C1\u724C\u7B80\u62A5\u5E94\u5148\u660E\u786E\u76EE\u6807\u53D7\u4F17\u3001\u5B9A\u4F4D\u3001\u54C1\u724C\u4EBA\u683C\u3001\u89C6\u89C9\u4E0E\u8BED\u8A00\u8868\u8FBE\uFF0C\u518D\u8FDB\u5165 Logo \u548C\u89C6\u89C9\u7CFB\u7EDF\u8BBE\u8BA1\u3002",
+  "\u54C1\u724C\u540D\u79F0\u548C Logo \u5E94\u5C3D\u91CF\u5177\u6709\u72EC\u7279\u6027\uFF0C\u907F\u514D\u8FC7\u4E8E\u901A\u7528\u3001\u4EC5\u63CF\u8FF0\u54C1\u7C7B\uFF0C\u907F\u514D\u6A21\u4EFF\u73B0\u6709\u77E5\u540D\u54C1\u724C\u6216\u884C\u4E1A\u5E38\u89C1\u7B26\u53F7\u3002",
+  "\u54C1\u724C\u5E94\u7528\u56FE\u4E2D\u7684\u6B63\u6587\u548C\u8BF4\u660E\u6587\u5B57\u8981\u6709\u8DB3\u591F\u660E\u6697\u5BF9\u6BD4\uFF1BLogo \u672C\u8EAB\u53EF\u66F4\u81EA\u7531\uFF0C\u4F46\u5E94\u7528\u573A\u666F\u5FC5\u987B\u4FDD\u8BC1\u53EF\u8BFB\u6027\u3002"
+];
+var LOGO_BRAND_OUTPUTS = [
+  {
+    id: "primary-logo",
+    title: "\u4E3B Logo \u6982\u5FF5",
+    aspectRatio: "1:1",
+    longSide: 640,
+    note: "\u54C1\u724C\u4E3B\u6807\u5FD7\u65B9\u5411\uFF0C\u5305\u542B\u56FE\u5F62\u7B26\u53F7\u548C\u54C1\u724C\u540D\u7EC4\u5408\u3002",
+    guidance: [
+      "\u751F\u6210\u4E00\u4E2A\u5E72\u51C0\u3001\u53EF\u8BC6\u522B\u3001\u53EF\u6269\u5C55\u7684\u4E3B Logo \u6982\u5FF5\uFF0C\u5305\u542B symbol + wordmark \u7EC4\u5408\u3002",
+      "\u54C1\u724C\u540D\u5E94\u5C3D\u91CF\u51C6\u786E\u5448\u73B0\uFF0C\u6587\u5B57\u7ED3\u6784\u5B8C\u6574\uFF0C\u4E0D\u8981\u51FA\u73B0\u4E71\u7801\u3001\u9519\u5B57\u6216\u989D\u5916\u65E0\u5173\u5B57\u6BCD\u3002",
+      "\u56FE\u5F62\u7B26\u53F7\u8981\u4E0E\u54C1\u724C\u5B9A\u4F4D\u548C\u884C\u4E1A\u76F8\u5173\uFF0C\u4F46\u4E0D\u8981\u76F4\u63A5\u4F7F\u7528\u884C\u4E1A\u91CC\u6700\u6CDB\u6EE5\u7684\u901A\u7528\u56FE\u6807\u3002"
+    ]
+  },
+  {
+    id: "alternate-logo",
+    title: "\u5907\u9009 Logo \u65B9\u5411",
+    aspectRatio: "1:1",
+    longSide: 640,
+    note: "\u540C\u4E00\u54C1\u724C\u7B56\u7565\u4E0B\u7684\u53E6\u4E00\u79CD\u89C6\u89C9\u65B9\u5411\uFF0C\u4FBF\u4E8E\u6BD4\u8F83\u3002",
+    guidance: [
+      "\u751F\u6210\u4E0E\u4E3B Logo \u4E0D\u540C\u4F46\u4ECD\u7B26\u5408\u54C1\u724C\u5B9A\u4F4D\u7684\u5907\u9009\u65B9\u5411\u3002",
+      "\u53EF\u4EE5\u6539\u53D8\u7B26\u53F7\u9690\u55BB\u3001\u5B57\u5F62\u6C14\u8D28\u6216\u6784\u56FE\u65B9\u5F0F\uFF0C\u4F46\u4FDD\u6301\u54C1\u724C\u540D\u3001\u884C\u4E1A\u548C\u76EE\u6807\u53D7\u4F17\u4E00\u81F4\u3002",
+      "\u4E0D\u8981\u505A\u6210\u540C\u4E00\u4E2A\u56FE\u6807\u7684\u7B80\u5355\u6362\u8272\u7248\u672C\u3002"
+    ]
+  },
+  {
+    id: "brand-board",
+    title: "\u54C1\u724C\u89C6\u89C9\u677F",
+    aspectRatio: "16:9",
+    longSide: 760,
+    note: "\u5C55\u793A Logo\u3001\u8272\u677F\u3001\u5B57\u4F53\u6C14\u8D28\u3001\u56FE\u5F62\u8BED\u8A00\u548C\u5F71\u50CF\u6C1B\u56F4\u3002",
+    guidance: [
+      "\u751F\u6210\u4E00\u5F20\u54C1\u724C\u89C6\u89C9\u677F\uFF0C\u5305\u542B Logo \u5C55\u793A\u3001\u6838\u5FC3\u8272\u677F\u3001\u8F85\u52A9\u8272\u3001\u5B57\u4F53\u6C14\u8D28\u3001\u56FE\u5F62\u7EB9\u7406\u6216\u5F71\u50CF\u98CE\u683C\u3002",
+      "\u7248\u9762\u8981\u50CF\u4E13\u4E1A\u54C1\u724C\u6307\u5357\u9875\u9762\uFF0C\u4FE1\u606F\u5C42\u7EA7\u6E05\u6670\uFF0C\u989C\u8272\u548C\u5B57\u4F53\u9009\u62E9\u4E0E\u54C1\u724C\u4EBA\u683C\u4E00\u81F4\u3002",
+      "\u8272\u677F\u548C\u6587\u5B57\u8BF4\u660E\u8981\u53EF\u8BFB\uFF0C\u907F\u514D\u4F4E\u5BF9\u6BD4\u5EA6\u5C0F\u5B57\u3002"
+    ]
+  },
+  {
+    id: "social-icon",
+    title: "\u793E\u5A92\u5934\u50CF / App \u56FE\u6807",
+    aspectRatio: "1:1",
+    longSide: 640,
+    note: "\u628A\u54C1\u724C\u7B26\u53F7\u7B80\u5316\u4E3A\u5C0F\u5C3A\u5BF8\u4E5F\u80FD\u8BC6\u522B\u7684\u56FE\u6807\u3002",
+    guidance: [
+      "\u751F\u6210\u9002\u5408\u793E\u5A92\u5934\u50CF\u6216 app \u56FE\u6807\u7684\u7B80\u5316\u54C1\u724C\u7B26\u53F7\u3002",
+      "\u5C0F\u5C3A\u5BF8\u4ECD\u80FD\u8BC6\u522B\uFF0C\u8F6E\u5ED3\u6E05\u695A\uFF0C\u8272\u5F69\u5BF9\u6BD4\u660E\u786E\u3002",
+      "\u4E0D\u8981\u585E\u5165\u590D\u6742\u5C0F\u5B57\uFF1B\u5982\u679C\u54C1\u724C\u540D\u592A\u957F\uFF0C\u4F18\u5148\u4F7F\u7528\u9996\u5B57\u6BCD\u6216\u62BD\u8C61\u7B26\u53F7\u3002"
+    ]
+  },
+  {
+    id: "application-preview",
+    title: "\u54C1\u724C\u5E94\u7528\u9884\u89C8",
+    aspectRatio: "16:9",
+    longSide: 760,
+    note: "\u5C55\u793A Logo \u5728\u5B98\u7F51\u3001\u540D\u7247\u3001\u5305\u88C5\u6216\u793E\u5A92\u7D20\u6750\u4E2D\u7684\u771F\u5B9E\u5E94\u7528\u3002",
+    guidance: [
+      "\u751F\u6210\u54C1\u724C\u5E94\u7528 mockup\uFF0C\u4F8B\u5982\u5B98\u7F51\u9996\u5C4F\u3001\u540D\u7247\u3001\u5305\u88C5\u3001\u793E\u5A92\u5C01\u9762\u6216\u4EA7\u54C1\u754C\u9762\u3002",
+      "\u5E94\u7528\u9884\u89C8\u8981\u4F53\u73B0 Logo\u3001\u989C\u8272\u3001\u5B57\u4F53\u548C\u89C6\u89C9\u5143\u7D20\u7684\u4E00\u81F4\u6027\u3002",
+      "\u4E0D\u8981\u751F\u6210\u53EF\u70B9\u51FB\u6309\u94AE\u6846\u3001\u7F16\u8F91\u6846\u6216\u753B\u5E03 UI\uFF1B\u6240\u6709\u5185\u5BB9\u76F4\u63A5\u6210\u4E3A\u56FE\u7247\u8BBE\u8BA1\u7684\u4E00\u90E8\u5206\u3002"
+    ]
+  }
+];
+function normalizeLogoBrandBrief(body) {
+  const rawBrief = isRecord(body.brief) ? body.brief : {};
+  const extra = typeof body.userRequest === "string" ? body.userRequest.trim() : "";
+  const outputCountValue = String(rawBrief.outputCount ?? "platform_default");
+  const outputCountNumber = Number(outputCountValue);
+  return {
+    brandName: briefString(rawBrief.brandName, ""),
+    industry: briefString(rawBrief.industry, ""),
+    targetAudience: briefString(rawBrief.targetAudience, ""),
+    positioning: briefString(rawBrief.positioning, ""),
+    personality: briefString(rawBrief.personality, "\u53EF\u4FE1\u3001\u6E05\u6670\u3001\u6709\u8BB0\u5FC6\u70B9"),
+    logoStyle: briefString(rawBrief.logoStyle, "\u73B0\u4EE3\u7B80\u6D01"),
+    usageContexts: briefString(rawBrief.usageContexts, "\u5B98\u7F51\u3001\u793E\u5A92\u5934\u50CF\u3001\u540D\u7247\u3001\u4EA7\u54C1\u5305\u88C5"),
+    outputCount: Number.isInteger(outputCountNumber) && outputCountNumber >= 1 ? Math.min(5, Math.max(1, outputCountNumber)) : "platform_default",
+    extra: extra || void 0
+  };
+}
+function logoBrandBriefGaps(brief) {
+  const missingInputs = [];
+  const clarificationQuestions = [];
+  if (!brief.brandName) {
+    missingInputs.push("\u54C1\u724C\u540D");
+    clarificationQuestions.push("\u54C1\u724C\u540D\u662F\u4EC0\u4E48\uFF1F\u5982\u679C\u8FD8\u6CA1\u5B9A\uFF0C\u4E5F\u53EF\u4EE5\u7ED9 2-3 \u4E2A\u5019\u9009\u540D\u3002");
+  }
+  if (!brief.industry) {
+    missingInputs.push("\u884C\u4E1A/\u54C1\u7C7B");
+    clarificationQuestions.push("\u8FD9\u4E2A\u54C1\u724C\u5C5E\u4E8E\u4EC0\u4E48\u884C\u4E1A\u6216\u4EA7\u54C1\u54C1\u7C7B\uFF1F");
+  }
+  if (!brief.targetAudience) {
+    missingInputs.push("\u76EE\u6807\u53D7\u4F17");
+    clarificationQuestions.push("\u4E3B\u8981\u9762\u5411\u8C01\uFF1F\u8BF7\u7ED9\u4E00\u4E2A\u5177\u4F53\u4EBA\u7FA4\u6216\u4F7F\u7528\u573A\u666F\u3002");
+  }
+  if (!brief.positioning) {
+    missingInputs.push("\u5B9A\u4F4D/\u5DEE\u5F02\u70B9");
+    clarificationQuestions.push("\u8FD9\u4E2A\u54C1\u724C\u6700\u60F3\u88AB\u7528\u6237\u8BB0\u4F4F\u7684\u5DEE\u5F02\u70B9\u662F\u4EC0\u4E48\uFF1F");
+  }
+  return {
+    missingInputs,
+    clarificationQuestions: clarificationQuestions.slice(0, 3)
+  };
+}
+function logoBrandPrompt(input) {
+  return [
+    skillPromptBase(input.skill, input.context, input.userRequest),
+    `\u8BF7\u751F\u6210\u300CLogo \u4E0E\u54C1\u724C\u300D\u7CFB\u7EDF\u4E2D\u7684\u7B2C ${input.index + 1}/${input.total} \u5F20\u6210\u54C1\u56FE\uFF1A${input.spec.title}\u3002`,
+    `\u54C1\u724C\u540D\uFF1A${input.brief.brandName}\u3002\u884C\u4E1A/\u54C1\u7C7B\uFF1A${input.brief.industry}\u3002`,
+    `\u76EE\u6807\u53D7\u4F17\uFF1A${input.brief.targetAudience}\u3002\u5B9A\u4F4D/\u5DEE\u5F02\u70B9\uFF1A${input.brief.positioning}\u3002`,
+    `\u54C1\u724C\u4EBA\u683C\uFF1A${input.brief.personality}\u3002Logo \u98CE\u683C\uFF1A${input.brief.logoStyle}\u3002\u4F7F\u7528\u573A\u666F\uFF1A${input.brief.usageContexts}\u3002`,
+    input.brief.extra ? `\u8865\u5145\u8981\u6C42\uFF1A${input.brief.extra}\u3002` : void 0,
+    `\u4E13\u4E1A\u89C4\u5219\uFF1A${LOGO_BRAND_STANDARDS.join(" ")}`,
+    `\u672C\u5F20\u56FE\u7247\u76EE\u6807\uFF1A${input.spec.note}`,
+    `\u672C\u5F20\u6267\u884C\u8981\u6C42\uFF1A${input.spec.guidance.join(" ")}`,
+    `\u8BBE\u8BA1\u65B9\u5411\uFF1A\u5F62\u6210\u53EF\u5EF6\u5C55\u7684\u54C1\u724C\u8BC6\u522B\u7CFB\u7EDF\uFF0C\u517C\u987E\u8BB0\u5FC6\u70B9\u3001\u5C0F\u5C3A\u5BF8\u8BC6\u522B\u3001\u9ED1\u767D/\u53CD\u767D\u53EF\u7528\u6027\u3001\u8272\u5F69\u4E00\u81F4\u6027\u548C\u5B9E\u9645\u5E94\u7528\u573A\u666F\u3002`,
+    `\u91CD\u8981\u9650\u5236\uFF1A\u4E0D\u8981\u6A21\u4EFF Apple\u3001Nike\u3001Google\u3001Adobe\u3001OpenAI \u7B49\u77E5\u540D\u54C1\u724C\uFF1B\u4E0D\u8981\u4F7F\u7528\u73B0\u6210\u5546\u6807\u3001\u7248\u6743\u89D2\u8272\u6216\u8FC7\u4E8E\u901A\u7528\u7684\u884C\u4E1A\u56FE\u6807\uFF1B\u4E0D\u8981\u58F0\u79F0\u5DF2\u5B8C\u6210\u5546\u6807\u68C0\u7D22\u6216\u6CD5\u5F8B\u6CE8\u518C\u3002`,
+    `\u6210\u54C1\u8981\u6C42\uFF1A\u76F4\u63A5\u8F93\u51FA\u6700\u7EC8\u53EF\u7528\u7684\u5149\u6805\u8BBE\u8BA1\u56FE\uFF0CLogo\u3001\u6587\u5B57\u3001\u8272\u677F\u3001\u5B57\u4F53\u548C mockup \u90FD\u5FC5\u987B\u6210\u4E3A\u56FE\u7247\u8BBE\u8BA1\u7684\u4E00\u90E8\u5206\uFF1B\u4E0D\u8981\u751F\u6210\u53EF\u7F16\u8F91\u8F93\u5165\u6846\u3001\u9009\u4E2D\u6846\u3001\u753B\u5E03 UI\u3001\u5360\u4F4D\u6846\u6216\u5355\u72EC\u6587\u5B57\u5C42\u3002`,
+    `\u8D28\u91CF\u8981\u6C42\uFF1A\u9AD8\u6E05\u3001\u7559\u767D\u5408\u7406\u3001\u6587\u5B57\u5B8C\u6574\u53EF\u8BFB\u3001\u54C1\u724C\u540D\u5C3D\u91CF\u51C6\u786E\u3001\u8272\u5F69\u5BF9\u6BD4\u6E05\u695A\u3001\u4E0D\u8981\u4E71\u7801\u3001\u6C34\u5370\u3001\u62FC\u8D34\u611F\u6216\u4F4E\u8D28\u6A21\u677F\u611F\u3002`
+  ].filter(Boolean).join("\n");
+}
+function logoBrandJobs(input) {
+  const count = input.brief.outputCount === "platform_default" ? LOGO_BRAND_OUTPUTS.length : Math.min(input.brief.outputCount, LOGO_BRAND_OUTPUTS.length);
+  let x = input.baseX;
+  return LOGO_BRAND_OUTPUTS.slice(0, count).map((spec, index) => {
+    const size = sizeForAspectRatio(spec.aspectRatio, spec.longSide);
+    const job = {
+      jobId: `${input.requestId}_job_${index + 1}`,
+      aspectRatio: spec.aspectRatio,
+      outputDir: input.outputDir,
+      outputName: `${input.requestId}_${spec.id}.png`,
+      title: spec.title,
+      placement: {
+        x,
+        y: input.baseY,
+        ...size
+      },
+      note: `\u54C1\u724C\u7CFB\u7EDF\uFF1A${spec.note}`,
+      brief: input.brief,
+      prompt: logoBrandPrompt({
+        context: input.context,
+        skill: input.skill,
+        userRequest: input.userRequest,
+        brief: input.brief,
+        spec,
+        index,
+        total: count
+      })
+    };
+    x += size.w + 80;
+    return job;
+  });
+}
+function pendingLogoBrandBriefJob(input) {
+  const size = sizeForAspectRatio("1:1", 420);
+  return {
+    jobId: `${input.requestId}_brief_pending`,
+    aspectRatio: "1:1",
+    outputDir: input.outputDir,
+    outputName: `${input.requestId}_logo_brief_pending.png`,
+    title: "Logo \u4E0E\u54C1\u724C\u7B80\u62A5\u5F85\u8865\u5145",
+    placement: {
+      x: input.baseX,
+      y: input.baseY,
+      ...size
+    },
+    note: `\u7F3A\u5C11\uFF1A${input.missingInputs.join("\u3001")}`,
+    brief: input.brief,
+    prompt: [
+      "\u8FD9\u662F Logo \u4E0E\u54C1\u724C Skill \u7684\u5F85\u8865\u5145\u7B80\u62A5\uFF0C\u4E0D\u8981\u751F\u6210\u56FE\u7247\u3002",
+      `\u7F3A\u5C11\u4FE1\u606F\uFF1A${input.missingInputs.join("\u3001")}`,
+      `\u8BF7\u5148\u5411\u7528\u6237\u63D0\u95EE\uFF1A${input.clarificationQuestions.join(" / ")}`
+    ].join("\n")
+  };
+}
+var MARKETING_BROCHURE_FORMATS = {
+  trifold_brochure: "\u4E09\u6298\u9875\u5BA3\u4F20\u518C",
+  service_brochure: "\u670D\u52A1\u4ECB\u7ECD\u518C",
+  event_campaign: "\u6D3B\u52A8\u63A8\u5E7F\u518C",
+  product_brochure: "\u4EA7\u54C1\u63A8\u5E7F\u518C"
+};
+var MARKETING_BROCHURE_STANDARDS = [
+  "\u4E09\u6298\u9875\u901A\u5E38\u6709\u516D\u4E2A\u4FE1\u606F\u533A\u57DF\uFF0C\u9002\u5408\u7528\u5C01\u9762\u3001\u95EE\u9898/\u6536\u76CA\u3001\u65B9\u6848\u3001\u8BC1\u660E\u3001\u7EC6\u8282\u548C\u884C\u52A8\u53F7\u53EC\u6765\u7EC4\u7EC7\u5185\u5BB9\u3002",
+  "\u5BA3\u4F20\u518C\u5E94\u5728\u660E\u786E\u4FE1\u606F\u76EE\u6807\u7684\u57FA\u7840\u4E0A\u8BB2\u6545\u4E8B\uFF1A\u5C01\u9762\u5438\u5F15\u6CE8\u610F\uFF0C\u5185\u9875\u89E3\u91CA\u4EF7\u503C\uFF0C\u7ED3\u5C3E\u7ED9\u51FA\u6E05\u6670 CTA\u3002",
+  "\u4E13\u4E1A\u8425\u9500\u7269\u6599\u9700\u8981\u4FDD\u6301\u54C1\u724C\u989C\u8272\u3001Logo\u3001\u5B57\u4F53\u548C\u56FE\u7247\u98CE\u683C\u4E00\u81F4\uFF0C\u5E76\u63A7\u5236\u6587\u5B57\u5BC6\u5EA6\u3002",
+  "\u843D\u5730\u9875\u548C\u6D3B\u52A8\u7269\u6599\u90FD\u5E94\u805A\u7126\u5355\u4E00\u76EE\u6807\u3001\u660E\u786E\u53D7\u4F17\u3001\u6E05\u695A\u627F\u8BFA\uFF0C\u5E76\u7528\u76F4\u63A5 CTA \u5F15\u5BFC\u4E0B\u4E00\u6B65\u3002",
+  "\u7528\u4E8E\u5E7F\u544A\u6216\u793E\u5A92\u7684\u63A8\u5E7F\u56FE\u8981\u77ED\u4FE1\u606F\u3001\u9AD8\u53EF\u8BFB\u6027\u3001\u5F3A\u89C6\u89C9\u7126\u70B9\uFF0C\u5E76\u907F\u514D\u5938\u5F20\u627F\u8BFA\u3001\u4E71\u7801\u6587\u5B57\u548C\u4F4E\u8D28\u4FC3\u9500\u6A21\u677F\u3002"
+];
+var MARKETING_BROCHURE_OUTPUTS = [
+  {
+    id: "outer-panels",
+    title: "\u4E09\u6298\u9875\u5916\u9875",
+    aspectRatio: "4:3",
+    longSide: 760,
+    note: "\u5C01\u9762\u3001\u5C01\u5E95\u548C\u6298\u5165\u53E3\u4E09\u9762\u677F\uFF0C\u8D1F\u8D23\u7B2C\u4E00\u5370\u8C61\u548C CTA\u3002",
+    guidance: [
+      "\u751F\u6210\u6A2A\u5411\u5C55\u5F00\u7684\u4E09\u6298\u9875\u5916\u9875\uFF0C\u6E05\u695A\u5206\u6210 3 \u4E2A\u7AD6\u5411\u9762\u677F\uFF1A\u5C01\u5E95\u3001\u5C01\u9762\u3001\u6298\u5165\u53E3\u3002",
+      "\u5C01\u9762\u8981\u6709\u5F3A\u6807\u9898\u3001\u4E3B\u89C6\u89C9\u548C\u54C1\u724C\u8BC6\u522B\uFF1B\u5C01\u5E95\u8981\u6709 CTA\u3001\u8054\u7CFB\u65B9\u5F0F/\u4E8C\u7EF4\u7801\u5360\u4F4D\u611F\uFF1B\u6298\u5165\u53E3\u8981\u7ED9\u51FA\u4E00\u53E5\u8BF1\u56E0\u6216\u6838\u5FC3\u5229\u76CA\u3002",
+      "\u9762\u677F\u4E4B\u95F4\u8981\u6709\u660E\u786E\u6298\u7EBF/\u680F\u8DDD\uFF0C\u6587\u5B57\u5B8C\u6574\u5728\u5B89\u5168\u533A\u5185\uFF0C\u4E0D\u8981\u628A\u5173\u952E\u4FE1\u606F\u538B\u5230\u6298\u7EBF\u6216\u8FB9\u7F18\u3002"
+    ]
+  },
+  {
+    id: "inner-panels",
+    title: "\u4E09\u6298\u9875\u5185\u9875",
+    aspectRatio: "4:3",
+    longSide: 760,
+    note: "\u4E09\u680F\u5185\u9875\uFF0C\u89E3\u91CA\u4EF7\u503C\u3001\u670D\u52A1/\u4EA7\u54C1\u5185\u5BB9\u548C\u53EF\u4FE1\u7406\u7531\u3002",
+    guidance: [
+      "\u751F\u6210\u6A2A\u5411\u5C55\u5F00\u7684\u4E09\u6298\u9875\u5185\u9875\uFF0C\u6E05\u695A\u5206\u6210 3 \u4E2A\u7AD6\u5411\u5185\u5BB9\u9762\u677F\u3002",
+      "\u5185\u5BB9\u7ED3\u6784\u5EFA\u8BAE\uFF1A\u7528\u6237\u75DB\u70B9/\u673A\u4F1A\u3001\u89E3\u51B3\u65B9\u6848\u6216\u6D41\u7A0B\u3001\u8BC1\u660E/\u6848\u4F8B/\u6743\u76CA\u3002",
+      "\u4FE1\u606F\u5C42\u7EA7\u8981\u6E05\u6670\uFF0C\u56FE\u6587\u6BD4\u4F8B\u5E73\u8861\uFF0C\u4E0D\u8981\u5806\u6EE1\u5C0F\u5B57\uFF1B\u91CD\u70B9\u53E5\u3001\u56FE\u6807\u548C\u56FE\u7247\u8981\u670D\u52A1\u4E8E\u9605\u8BFB\u8DEF\u5F84\u3002"
+    ]
+  },
+  {
+    id: "mockup-preview",
+    title: "\u5BA3\u4F20\u518C\u6837\u673A\u9884\u89C8",
+    aspectRatio: "16:9",
+    longSide: 760,
+    note: "\u5C55\u793A\u5BA3\u4F20\u518C\u6298\u53E0\u540E\u7684\u771F\u5B9E\u8D28\u611F\u548C\u54C1\u724C\u4E00\u81F4\u6027\u3002",
+    guidance: [
+      "\u751F\u6210\u5BA3\u4F20\u518C\u7ACB\u4F53\u6837\u673A\u6216\u684C\u9762\u5C55\u793A\u9884\u89C8\uFF0C\u4F53\u73B0\u7EB8\u5F20\u8D28\u611F\u3001\u6298\u9875\u7ED3\u6784\u548C\u4E3B\u89C6\u89C9\u3002",
+      "\u6837\u673A\u4E2D\u7684 Logo\u3001\u989C\u8272\u548C\u6807\u9898\u5E94\u4E0E\u5916\u9875/\u5185\u9875\u65B9\u5411\u4E00\u81F4\u3002",
+      "\u4E0D\u8981\u505A\u6210\u7A7A\u767D\u6837\u673A\uFF1B\u8981\u80FD\u770B\u51FA\u8FD9\u662F\u5B8C\u6574\u8425\u9500\u7269\u6599\u3002"
+    ]
+  },
+  {
+    id: "social-promo",
+    title: "\u793E\u5A92\u63A8\u5E7F\u56FE",
+    aspectRatio: "4:5",
+    longSide: 720,
+    note: "\u628A\u540C\u4E00\u5BA3\u4F20\u4E3B\u9898\u6539\u6210\u79FB\u52A8\u7AEF\u63A8\u5E7F\u89C6\u89C9\u3002",
+    guidance: [
+      "\u751F\u6210 4:5 \u79FB\u52A8\u7AEF\u793E\u5A92\u63A8\u5E7F\u56FE\uFF0C\u7A81\u51FA\u540C\u4E00\u4E2A\u6D3B\u52A8/\u4EA7\u54C1\u6838\u5FC3\u4FE1\u606F\u3002",
+      "\u6807\u9898\u77ED\u3001CTA \u660E\u786E\u3001\u4E3B\u4F53\u6E05\u6670\uFF0C\u8FB9\u7F18\u4FDD\u7559\u5B89\u5168\u7A7A\u95F4\u3002",
+      "\u89C6\u89C9\u98CE\u683C\u4E0E\u5BA3\u4F20\u518C\u4E00\u81F4\uFF0C\u4F46\u6784\u56FE\u8981\u9002\u5408\u4FE1\u606F\u6D41\u5FEB\u901F\u6D4F\u89C8\u3002"
+    ]
+  }
+];
+function normalizeMarketingBrochureBrief(body) {
+  const rawBrief = isRecord(body.brief) ? body.brief : {};
+  const extra = typeof body.userRequest === "string" ? body.userRequest.trim() : "";
+  const format = String(rawBrief.format ?? "trifold_brochure");
+  const outputCountValue = String(rawBrief.outputCount ?? "platform_default");
+  const outputCountNumber = Number(outputCountValue);
+  return {
+    format: format in MARKETING_BROCHURE_FORMATS ? format : "trifold_brochure",
+    campaignName: briefString(rawBrief.campaignName, ""),
+    brandName: briefString(rawBrief.brandName, ""),
+    targetAudience: briefString(rawBrief.targetAudience, ""),
+    keyMessage: briefString(rawBrief.keyMessage, ""),
+    offer: briefString(rawBrief.offer, ""),
+    callToAction: briefString(rawBrief.callToAction, ""),
+    visualTone: briefString(rawBrief.visualTone, "\u6E05\u6670\u4E13\u4E1A"),
+    outputCount: Number.isInteger(outputCountNumber) && outputCountNumber >= 1 ? Math.min(4, Math.max(1, outputCountNumber)) : "platform_default",
+    extra: extra || void 0
+  };
+}
+function marketingBrochureBriefGaps(brief) {
+  const missingInputs = [];
+  const clarificationQuestions = [];
+  if (!brief.campaignName) {
+    missingInputs.push("\u6D3B\u52A8/\u4EA7\u54C1");
+    clarificationQuestions.push("\u8FD9\u4EFD\u5BA3\u4F20\u518C\u8981\u63A8\u5E7F\u7684\u6D3B\u52A8\u3001\u670D\u52A1\u6216\u4EA7\u54C1\u662F\u4EC0\u4E48\uFF1F");
+  }
+  if (!brief.targetAudience) {
+    missingInputs.push("\u76EE\u6807\u53D7\u4F17");
+    clarificationQuestions.push("\u4E3B\u8981\u7ED9\u8C01\u770B\uFF1F\u8BF7\u7ED9\u4E00\u4E2A\u5177\u4F53\u4EBA\u7FA4\u548C\u4F7F\u7528\u573A\u666F\u3002");
+  }
+  if (!brief.keyMessage) {
+    missingInputs.push("\u6838\u5FC3\u4FE1\u606F");
+    clarificationQuestions.push("\u8FD9\u4EFD\u5BA3\u4F20\u518C\u6700\u60F3\u8BA9\u7528\u6237\u8BB0\u4F4F\u7684\u4E00\u53E5\u8BDD\u662F\u4EC0\u4E48\uFF1F");
+  }
+  if (!brief.callToAction) {
+    missingInputs.push("\u884C\u52A8\u53F7\u53EC");
+    clarificationQuestions.push("\u7528\u6237\u770B\u5B8C\u540E\u5E94\u8BE5\u505A\u4EC0\u4E48\uFF1F\u4F8B\u5982\u9884\u7EA6\u3001\u62A5\u540D\u3001\u626B\u7801\u3001\u54A8\u8BE2\u6216\u8D2D\u4E70\u3002");
+  }
+  return {
+    missingInputs,
+    clarificationQuestions: clarificationQuestions.slice(0, 3)
+  };
+}
+function marketingBrochurePrompt(input) {
+  return [
+    skillPromptBase(input.skill, input.context, input.userRequest),
+    `\u8BF7\u751F\u6210\u300C\u8425\u9500\u5BA3\u4F20\u518C\u300D\u7CFB\u7EDF\u4E2D\u7684\u7B2C ${input.index + 1}/${input.total} \u5F20\u6210\u54C1\u56FE\uFF1A${input.spec.title}\u3002`,
+    `\u7269\u6599\u7C7B\u578B\uFF1A${MARKETING_BROCHURE_FORMATS[input.brief.format]}\u3002\u6D3B\u52A8/\u4EA7\u54C1\uFF1A${input.brief.campaignName}\u3002`,
+    input.brief.brandName ? `\u54C1\u724C\u540D\uFF1A${input.brief.brandName}\u3002` : void 0,
+    `\u76EE\u6807\u53D7\u4F17\uFF1A${input.brief.targetAudience}\u3002\u6838\u5FC3\u4FE1\u606F\uFF1A${input.brief.keyMessage}\u3002`,
+    input.brief.offer ? `\u4F18\u60E0/\u5185\u5BB9\u70B9\uFF1A${input.brief.offer}\u3002` : void 0,
+    `\u884C\u52A8\u53F7\u53EC\uFF1A${input.brief.callToAction}\u3002\u89C6\u89C9\u8BED\u6C14\uFF1A${input.brief.visualTone}\u3002`,
+    input.brief.extra ? `\u8865\u5145\u8981\u6C42\uFF1A${input.brief.extra}\u3002` : void 0,
+    `\u4E13\u4E1A\u89C4\u5219\uFF1A${MARKETING_BROCHURE_STANDARDS.join(" ")}`,
+    `\u672C\u5F20\u56FE\u7247\u76EE\u6807\uFF1A${input.spec.note}`,
+    `\u672C\u5F20\u6267\u884C\u8981\u6C42\uFF1A${input.spec.guidance.join(" ")}`,
+    `\u5185\u5BB9\u7B56\u7565\uFF1A\u6807\u9898\u8981\u77ED\u800C\u660E\u786E\uFF0C\u4FE1\u606F\u4ECE\u95EE\u9898/\u6536\u76CA\u5230\u65B9\u6848/\u8BC1\u660E\u518D\u5230 CTA\uFF1B\u4E0D\u8981\u628A\u6240\u6709\u6587\u6848\u585E\u8FDB\u4E00\u5F20\u56FE\uFF0C\u5B81\u53EF\u6E05\u695A\u7559\u767D\u3002`,
+    `\u5370\u5237/\u9605\u8BFB\u8981\u6C42\uFF1A\u9762\u677F\u8FB9\u7F18\u548C\u6298\u7EBF\u9644\u8FD1\u4FDD\u7559\u5B89\u5168\u7A7A\u95F4\uFF1B\u6587\u5B57\u3001Logo\u3001\u4E8C\u7EF4\u7801\u5360\u4F4D\u3001\u8054\u7CFB\u65B9\u5F0F\u6216 CTA \u4E0D\u8981\u8D34\u8FB9\uFF1B\u6574\u4F53\u9002\u5408\u6253\u5370\u548C\u6570\u5B57\u9884\u89C8\u3002`,
+    `\u6210\u54C1\u8981\u6C42\uFF1A\u76F4\u63A5\u8F93\u51FA\u6700\u7EC8\u53EF\u7528\u7684\u5149\u6805\u8BBE\u8BA1\u56FE\uFF0C\u6807\u9898\u3001\u6587\u6848\u3001\u56FE\u6807\u3001CTA\u3001\u8272\u5F69\u548C\u7248\u5F0F\u5FC5\u987B\u76F4\u63A5\u751F\u6210\u5728\u56FE\u7247\u4E2D\uFF1B\u4E0D\u8981\u751F\u6210\u53EF\u7F16\u8F91\u8F93\u5165\u6846\u3001\u9009\u4E2D\u6846\u3001\u753B\u5E03 UI\u3001\u5360\u4F4D\u6846\u6216\u5355\u72EC\u6587\u5B57\u5C42\u3002`,
+    `\u8D28\u91CF\u8981\u6C42\uFF1A\u9AD8\u6E05\u3001\u54C1\u724C\u4E00\u81F4\u3001\u5C42\u7EA7\u6E05\u695A\u3001\u6587\u5B57\u5B8C\u6574\u53EF\u8BFB\u3001\u4E0D\u8981\u4E71\u7801\u3001\u6C34\u5370\u3001\u5938\u5F20\u627F\u8BFA\u3001\u4F4E\u8D28\u4FC3\u9500\u6A21\u677F\u6216\u4FE1\u606F\u8FC7\u8F7D\u3002`
+  ].filter(Boolean).join("\n");
+}
+function marketingBrochureJobs(input) {
+  const count = input.brief.outputCount === "platform_default" ? MARKETING_BROCHURE_OUTPUTS.length : Math.min(input.brief.outputCount, MARKETING_BROCHURE_OUTPUTS.length);
+  let x = input.baseX;
+  return MARKETING_BROCHURE_OUTPUTS.slice(0, count).map((spec, index) => {
+    const size = sizeForAspectRatio(spec.aspectRatio, spec.longSide);
+    const job = {
+      jobId: `${input.requestId}_job_${index + 1}`,
+      aspectRatio: spec.aspectRatio,
+      outputDir: input.outputDir,
+      outputName: `${input.requestId}_${spec.id}.png`,
+      title: spec.title,
+      placement: {
+        x,
+        y: input.baseY,
+        ...size
+      },
+      note: `\u8425\u9500\u5BA3\u4F20\u518C\uFF1A${spec.note}`,
+      brief: input.brief,
+      prompt: marketingBrochurePrompt({
+        context: input.context,
+        skill: input.skill,
+        userRequest: input.userRequest,
+        brief: input.brief,
+        spec,
+        index,
+        total: count
+      })
+    };
+    x += size.w + 80;
+    return job;
+  });
+}
+function pendingMarketingBrochureBriefJob(input) {
+  const size = sizeForAspectRatio("4:3", 520);
+  return {
+    jobId: `${input.requestId}_brief_pending`,
+    aspectRatio: "4:3",
+    outputDir: input.outputDir,
+    outputName: `${input.requestId}_marketing_brief_pending.png`,
+    title: "\u8425\u9500\u5BA3\u4F20\u518C\u7B80\u62A5\u5F85\u8865\u5145",
+    placement: {
+      x: input.baseX,
+      y: input.baseY,
+      ...size
+    },
+    note: `\u7F3A\u5C11\uFF1A${input.missingInputs.join("\u3001")}`,
+    brief: input.brief,
+    prompt: [
+      "\u8FD9\u662F\u8425\u9500\u5BA3\u4F20\u518C Skill \u7684\u5F85\u8865\u5145\u7B80\u62A5\uFF0C\u4E0D\u8981\u751F\u6210\u56FE\u7247\u3002",
+      `\u7F3A\u5C11\u4FE1\u606F\uFF1A${input.missingInputs.join("\u3001")}`,
+      `\u8BF7\u5148\u5411\u7528\u6237\u63D0\u95EE\uFF1A${input.clarificationQuestions.join(" / ")}`
+    ].join("\n")
+  };
+}
+function xiaohongshuPrompt(input) {
+  return [
+    skillPromptBase(input.skill, input.context, input.userRequest),
+    `\u8BF7\u57FA\u4E8E\u53C2\u8003\u56FE\u7247\u751F\u6210 1 \u5F20\u5C0F\u7EA2\u4E66 3:4 \u6210\u54C1\u5C01\u9762\u56FE\uFF0C\u4E0D\u8981\u8F93\u51FA\u534A\u6210\u54C1\u5E95\u56FE\u3002`,
+    `\u5185\u5BB9\u7C7B\u578B\uFF1A${input.brief.contentType}\u3002`,
+    `\u4E3B\u6807\u9898\u5FC5\u987B\u76F4\u63A5\u8BBE\u8BA1\u8FDB\u56FE\u7247\u91CC\uFF0C\u6587\u5B57\u5185\u5BB9\u4E3A\uFF1A\u300C${input.brief.title}\u300D\u3002`,
+    `\u6807\u9898\u98CE\u683C\uFF1A${input.brief.titleStyle}\u3002\u6807\u9898\u4F4D\u7F6E\uFF1A${input.brief.textPlacement}\u3002`,
+    `\u4FDD\u7559\u91CD\u70B9\uFF1A${input.brief.focus}\u3002`,
+    input.brief.extra ? `\u8865\u5145\u8981\u6C42\uFF1A${input.brief.extra}\u3002` : void 0,
+    `\u6210\u54C1\u8981\u6C42\uFF1A\u6807\u9898\u8981\u6709\u771F\u5B9E\u6D77\u62A5/\u5C01\u9762\u8BBE\u8BA1\u611F\uFF0C\u5305\u62EC\u5B57\u4F53\u9009\u62E9\u3001\u5B57\u91CD\u3001\u63CF\u8FB9\u3001\u9634\u5F71\u3001\u538B\u5B57\u3001\u7559\u767D\u3001\u8F85\u52A9\u5C0F\u5B57\u6216\u88C5\u9970\u7EBF\u6761\uFF0C\u4F46\u6574\u4F53\u8981\u9AD8\u7EA7\u514B\u5236\u3002`,
+    `\u6784\u56FE\u8981\u6C42\uFF1A\u6807\u9898\u5FC5\u987B\u5B8C\u6574\u7559\u5728\u753B\u9762\u5185\uFF0C\u56DB\u5468\u81F3\u5C11\u4FDD\u7559 8% \u5B89\u5168\u8FB9\u8DDD\uFF1B\u4EBA\u7269/\u4EA7\u54C1\u4E3B\u4F53\u4E0D\u8981\u88AB\u6807\u9898\u906E\u6321\uFF0C\u5934\u90E8\u3001\u8138\u90E8\u548C\u5173\u952E\u624B\u52BF\u4E0D\u8981\u88C1\u5207\u3002`,
+    `\u89C6\u89C9\u65B9\u5411\uFF1A\u9AD8\u7EA7\u3001\u5E72\u51C0\u3001\u4E3B\u4F53\u6E05\u6670\uFF0C\u9002\u5408\u5C0F\u7EA2\u4E66\u4FE1\u606F\u6D41\u70B9\u51FB\uFF0C\u4F46\u907F\u514D\u5EC9\u4EF7\u8425\u9500\u611F\u3002`,
+    `\u6587\u5B57\u8981\u6C42\uFF1A\u5C3D\u91CF\u51C6\u786E\u5448\u73B0\u4E3B\u6807\u9898\u300C${input.brief.title}\u300D\uFF0C\u4E0D\u8981\u628A\u6807\u9898\u653E\u51FA\u753B\u9762\u8FB9\u7F18\uFF0C\u4E0D\u8981\u751F\u6210\u8F93\u5165\u6846\u3001\u9009\u4E2D\u6846\u3001\u7F16\u8F91\u6846\u6216\u753B\u5E03 UI\u3002`,
+    `\u907F\u514D\uFF1A\u4F4E\u6E05\u6670\u5EA6\u3001\u7578\u5F62\u4E3B\u4F53\u3001\u8FC7\u5EA6\u78E8\u76AE\u3001\u8FC7\u5EA6\u5806\u53E0\u88C5\u9970\u3001\u9519\u4E71\u6587\u5B57\u3001\u6C34\u5370\u3001\u6807\u9898\u88C1\u5207\u3001\u6807\u9898\u8D85\u51FA\u753B\u5E03\u3002`
+  ].filter(Boolean).join("\n");
+}
+function youtubePrompt(input) {
+  return [
+    skillPromptBase(input.skill, input.context, input.userRequest),
+    `\u8BF7\u57FA\u4E8E\u53C2\u8003\u56FE\u7247\u751F\u6210 1 \u5F20 YouTube 16:9 \u6210\u54C1\u7F29\u7565\u56FE\uFF0C\u4E0D\u8981\u8F93\u51FA\u534A\u6210\u54C1\u5E95\u56FE\u3002`,
+    `\u89C6\u9891\u4E3B\u9898\uFF1A${input.brief.videoTopic}\u3002\u76EE\u6807\u89C2\u4F17\uFF1A${input.brief.audience}\u3002`,
+    `\u5927\u6807\u9898\u5FC5\u987B\u76F4\u63A5\u8BBE\u8BA1\u8FDB\u56FE\u7247\u91CC\uFF0C\u6587\u5B57\u5185\u5BB9\u4E3A\uFF1A\u300C${input.brief.title}\u300D\u3002`,
+    `\u7F29\u7565\u56FE\u98CE\u683C\uFF1A${input.brief.thumbnailStyle}\u3002\u6807\u9898\u4F4D\u7F6E\uFF1A${input.brief.textPlacement}\u3002`,
+    `\u4FDD\u7559\u91CD\u70B9\uFF1A${input.brief.focus}\u3002`,
+    input.brief.extra ? `\u8865\u5145\u8981\u6C42\uFF1A${input.brief.extra}\u3002` : void 0,
+    `\u89C4\u683C\u53C2\u8003\uFF1AYouTube \u5B98\u65B9\u5EFA\u8BAE\u7F29\u7565\u56FE\u5C3D\u91CF\u5927\uFF0C\u5E38\u7528\u9884\u89C8\u6BD4\u4F8B\u4E3A 16:9\uFF1B\u8BBE\u8BA1\u65F6\u8BF7\u786E\u4FDD\u5C0F\u5C3A\u5BF8\u4ECD\u6709\u5F3A\u4E3B\u4F53\u548C\u6E05\u6670\u70B9\u51FB\u7406\u7531\u3002`,
+    `\u6210\u54C1\u8981\u6C42\uFF1A\u6807\u9898\u8981\u50CF\u4E13\u4E1A YouTube \u7F29\u7565\u56FE\u8BBE\u8BA1\uFF0C\u5177\u5907\u5F3A\u5C42\u7EA7\u3001\u5927\u5B57\u53EF\u8BFB\u6027\u3001\u9AD8\u5BF9\u6BD4\u3001\u9002\u5EA6\u63CF\u8FB9/\u9634\u5F71/\u8272\u5757\uFF0C\u4F46\u4E0D\u8981\u5EC9\u4EF7\u6A21\u677F\u611F\u3002`,
+    `\u6784\u56FE\u8981\u6C42\uFF1A\u6807\u9898\u5FC5\u987B\u5B8C\u6574\u7559\u5728\u753B\u9762\u5185\uFF0C\u56DB\u5468\u81F3\u5C11\u4FDD\u7559 8% \u5B89\u5168\u8FB9\u8DDD\uFF1B\u53F3\u4E0B\u89D2\u907F\u5F00\u65F6\u957F\u6807\u7B7E\u533A\u57DF\uFF0C\u4E3B\u4F53\u4E0E\u80CC\u666F\u4FDD\u6301\u9AD8\u5BF9\u6BD4\uFF0C\u907F\u514D\u4FE1\u606F\u88AB\u88C1\u5207\u3002`,
+    `\u6587\u5B57\u8981\u6C42\uFF1A\u5C3D\u91CF\u51C6\u786E\u5448\u73B0\u5927\u6807\u9898\u300C${input.brief.title}\u300D\uFF0C\u4E0D\u8981\u751F\u6210\u8F93\u5165\u6846\u3001\u9009\u4E2D\u6846\u3001\u7F16\u8F91\u6846\u6216\u753B\u5E03 UI\u3002`,
+    `\u907F\u514D\uFF1A\u4F4E\u6E05\u6670\u5EA6\u3001\u4E3B\u4F53\u53D8\u5F62\u3001\u6742\u4E71\u80CC\u666F\u3001\u9519\u4E71\u6587\u5B57\u3001\u6C34\u5370\u3001\u6807\u9898\u88C1\u5207\u3001\u5938\u5F20\u5EC9\u4EF7\u8425\u9500\u6A21\u677F\u3002`
+  ].filter(Boolean).join("\n");
+}
+function crossPlatformPrompt(input) {
+  return [
+    skillPromptBase(input.skill, input.context, input.userRequest),
+    `\u8BF7\u5C06\u53C2\u8003\u56FE\u7247\u91CD\u6784/\u6269\u56FE/\u88C1\u5207\u9002\u914D\u4E3A\u300C${input.spec.name}\u300D\u5E73\u53F0\u6210\u54C1\u89C6\u89C9\uFF0C\u6BD4\u4F8B ${input.spec.aspectRatio}\u3002`,
+    `\u53D1\u5E03\u76EE\u6807\uFF1A${input.brief.campaignGoal}\u3002`,
+    `\u5185\u5BB9\u7C7B\u578B\uFF1A${input.brief.contentKind}\u3002`,
+    `\u5E73\u53F0\u7528\u9014\uFF1A${input.spec.note}`,
+    `\u5E73\u53F0\u6807\u51C6\uFF1A${input.spec.standard}`,
+    `\u5B89\u5168\u533A\uFF1A${input.spec.safeArea}`,
+    `\u5FC5\u987B\u4FDD\u7559\uFF1A${input.brief.preserve}\u3002`,
+    `\u80CC\u666F\u5904\u7406\uFF1A${input.brief.backgroundStrategy}\u3002`,
+    `\u6587\u5B57\u5904\u7406\uFF1A${input.brief.textPolicy}\u3002`,
+    input.brief.extra ? `\u8865\u5145\u8981\u6C42\uFF1A${input.brief.extra}\u3002` : void 0,
+    `\u672C\u5E73\u53F0\u6267\u884C\u8981\u6C42\uFF1A${input.spec.guidance.join(" ")}`,
+    `\u6267\u884C\u65B9\u5F0F\uFF1A\u4F18\u5148\u505A\u667A\u80FD\u6269\u56FE\u3001\u88C1\u5207\u91CD\u6784\u3001\u80CC\u666F\u8865\u5168\u548C\u89C6\u89C9\u91CD\u6392\uFF1B\u4E25\u7981\u7B80\u5355\u62C9\u4F38\u539F\u56FE\u6216\u53EA\u628A\u539F\u56FE\u5C45\u4E2D\u7559\u767D\u3002`,
+    `\u6784\u56FE\u8981\u6C42\uFF1A\u4E3B\u4F53\u5B8C\u6574\uFF0C\u8138\u90E8/\u4EA7\u54C1/\u5173\u952E\u52A8\u4F5C\u4E0D\u88AB\u5E73\u53F0\u88C1\u5207\uFF1B\u753B\u9762\u8981\u50CF\u9488\u5BF9\u8BE5\u5E73\u53F0\u91CD\u65B0\u8BBE\u8BA1\u8FC7\u7684\u6700\u7EC8\u6210\u54C1\uFF0C\u800C\u4E0D\u662F\u5C3A\u5BF8\u8F6C\u6362\u9884\u89C8\u3002`,
+    `\u6210\u54C1\u8981\u6C42\uFF1A\u76F4\u63A5\u8F93\u51FA\u6700\u7EC8\u53EF\u7528\u7684\u5149\u6805\u56FE\u7247\uFF1B\u5982\u679C\u9700\u8981\u6587\u5B57\uFF0C\u6587\u5B57\u5FC5\u987B\u4F5C\u4E3A\u56FE\u7247\u8BBE\u8BA1\u7684\u4E00\u90E8\u5206\u751F\u6210\u5728\u753B\u9762\u4E2D\uFF0C\u4E0D\u8981\u751F\u6210\u53EF\u7F16\u8F91\u8F93\u5165\u6846\u3001\u9009\u4E2D\u6846\u3001\u753B\u5E03 UI\u3001\u5360\u4F4D\u6846\u6216\u5355\u72EC\u6587\u5B57\u5C42\u3002`,
+    `\u91CD\u8981\u9650\u5236\uFF1A\u4E0D\u8981\u6DFB\u52A0\u65E0\u5173\u5E73\u53F0 UI\u3001\u865A\u5047\u6309\u94AE\u3001\u4E8C\u7EF4\u7801\u3001\u6C34\u5370\u6216\u4E0D\u5B58\u5728\u7684\u54C1\u724C\u6807\u8BC6\uFF1B\u4E0D\u8981\u6539\u53D8\u4EBA\u7269\u8EAB\u4EFD\u3001\u4EA7\u54C1\u5F62\u72B6\u6216\u539F\u56FE\u5173\u952E\u5143\u7D20\u3002`,
+    `\u907F\u514D\uFF1A\u6BD4\u4F8B\u62C9\u4F38\u3001\u4E3B\u4F53\u7F3A\u5931\u3001\u8FC7\u5EA6\u88C1\u8138\u3001\u4F4E\u6E05\u6670\u5EA6\u3001\u80CC\u666F\u65AD\u88C2\u3001\u9519\u4E71\u6587\u5B57\u3001\u8FB9\u7F18\u5173\u952E\u4FE1\u606F\u88AB\u5E73\u53F0 UI \u906E\u6321\u3002`
+  ].filter(Boolean).join("\n");
+}
+async function materializeSkillInputImage(body, primary) {
+  const existingPath = absoluteCanvasPath(primary.assetPath);
+  if (existingPath) {
+    return {
+      inputImagePath: existingPath,
+      inputAssetPath: primary.assetPath
+    };
+  }
+  const dataUrl = typeof body.inputDataUrl === "string" ? body.inputDataUrl : primary.assetUrl?.startsWith("data:") ? primary.assetUrl : void 0;
+  if (!dataUrl) {
+    return {
+      inputImagePath: void 0,
+      inputAssetPath: void 0
+    };
+  }
+  const parsed = parseDataUrl(dataUrl);
+  const title = body.inputTitle ? String(body.inputTitle) : "skill-input.png";
+  const written = await writeImageBufferIntoCanvas({
+    buffer: parsed.buffer,
+    source: "upload",
+    originalName: title
+  });
+  return {
+    inputImagePath: written.absolutePath,
+    inputAssetPath: written.record.assetPath
+  };
+}
+async function submitSkillRequest(body) {
+  if (!session) throw new Error("Canvas session is not open");
+  const skillId = String(body.skillId ?? "");
+  const executableSkillIds = /* @__PURE__ */ new Set([
+    "xiaohongshu-cover",
+    "youtube-thumbnail",
+    "cross-platform-adapt",
+    "product-marketing-set",
+    "logo-and-brand",
+    "marketing-brochure"
+  ]);
+  if (!executableSkillIds.has(skillId)) {
+    throw new Error("\u5F53\u524D\u771F\u5B9E\u751F\u6210\u95ED\u73AF\u542F\u7528\u300C\u5C0F\u7EA2\u4E66\u5C01\u9762\u300D\u300CYouTube \u5C01\u9762\u56FE\u300D\u300C\u4E00\u952E\u8DE8\u5E73\u53F0\u9002\u914D\u300D\u300C\u4EA7\u54C1\u8425\u9500\u7EC4\u56FE\u300D\u300CLogo \u4E0E\u54C1\u724C\u300D\u300C\u8425\u9500\u5BA3\u4F20\u518C\u300D\u3002\u5176\u5B83 Skill \u4F1A\u5728\u540E\u7EED\u63A5\u5165\u3002");
+  }
+  const skill = builtinSkills.find((item) => item.id === skillId);
+  if (!skill) throw new Error(`Unknown skill: ${skillId}`);
+  if (skill.disabled) throw new Error(skill.disabledReason ?? `Skill is disabled: ${skillId}`);
+  const state = statePayload();
+  const context = buildCanvasContext(state);
+  const primary = context.selection.primaryShape;
+  if (!primary && skill.inputRequirements.requiresSelection) throw new Error("\u8BF7\u5148\u9009\u4E2D\u4E00\u5F20\u56FE\u7247\u3002");
+  const requestId = slugId("skill");
+  const runId = slugId("skillrun");
+  const userRequest = body.userRequest ? String(body.userRequest) : void 0;
+  const { inputImagePath, inputAssetPath } = primary ? await materializeSkillInputImage(body, primary) : { inputImagePath: void 0, inputAssetPath: void 0 };
+  const outputDir = path.join(session.storagePath, "assets/images");
+  const baseX = primary ? primary.bounds.x + primary.bounds.w + 80 : 120;
+  const baseY = primary ? primary.bounds.y : 100;
+  let brief;
+  let generationJobs;
+  let briefStatus = "ready_to_generate";
+  let missingInputs;
+  let clarificationQuestions;
+  if (skillId === "xiaohongshu-cover") {
+    if (!primary) throw new Error("\u8BF7\u5148\u9009\u4E2D\u4E00\u5F20\u56FE\u7247\u3002");
+    const xiaohongshuBrief = normalizeXiaohongshuBrief(body);
+    const size = sizeForAspectRatio("3:4", Math.max(420, primary.bounds.h));
+    const generationJob2 = {
+      jobId: `${requestId}_job_1`,
+      aspectRatio: "3:4",
+      outputDir,
+      outputName: `${requestId}_xiaohongshu_cover.png`,
+      title: "\u5C0F\u7EA2\u4E66\u5C01\u9762",
+      placement: {
+        x: baseX,
+        y: baseY,
+        ...size
+      },
+      note: "\u5C0F\u7EA2\u4E66\uFF1A\u76F4\u51FA\u5305\u542B\u5B57\u4F53\u3001\u914D\u8272\u3001\u6392\u7248\u548C\u6807\u9898\u7684\u5B8C\u6574\u5C01\u9762\u6210\u54C1\u56FE\u3002",
+      brief: xiaohongshuBrief,
+      prompt: xiaohongshuPrompt({ context, skill, userRequest, brief: xiaohongshuBrief })
+    };
+    brief = xiaohongshuBrief;
+    generationJobs = [generationJob2];
+  } else if (skillId === "youtube-thumbnail") {
+    if (!primary) throw new Error("\u8BF7\u5148\u9009\u4E2D\u4E00\u5F20\u56FE\u7247\u3002");
+    const youtubeBrief = normalizeYoutubeBrief(body);
+    const size = sizeForAspectRatio("16:9", 720);
+    const generationJob2 = {
+      jobId: `${requestId}_job_1`,
+      aspectRatio: "16:9",
+      outputDir,
+      outputName: `${requestId}_youtube_thumbnail.png`,
+      title: "YouTube \u5C01\u9762\u56FE",
+      placement: {
+        x: baseX,
+        y: baseY,
+        ...size
+      },
+      note: "YouTube\uFF1A\u76F4\u51FA\u5305\u542B\u5B57\u4F53\u3001\u914D\u8272\u3001\u6392\u7248\u548C\u5927\u6807\u9898\u7684\u5B8C\u6574\u7F29\u7565\u56FE\u6210\u54C1\u56FE\u3002",
+      brief: youtubeBrief,
+      prompt: youtubePrompt({ context, skill, userRequest, brief: youtubeBrief })
+    };
+    brief = youtubeBrief;
+    generationJobs = [generationJob2];
+  } else if (skillId === "cross-platform-adapt") {
+    if (!primary) throw new Error("\u8BF7\u5148\u9009\u4E2D\u4E00\u5F20\u56FE\u7247\u3002");
+    const crossPlatformBrief = normalizeCrossPlatformBrief(body);
+    brief = crossPlatformBrief;
+    const gaps = crossPlatformBriefGaps(crossPlatformBrief);
+    missingInputs = gaps.missingInputs.length ? gaps.missingInputs : void 0;
+    clarificationQuestions = gaps.clarificationQuestions.length ? gaps.clarificationQuestions : void 0;
+    briefStatus = gaps.missingInputs.length ? "needs_input" : "ready_to_generate";
+    if (briefStatus === "needs_input") {
+      generationJobs = [
+        pendingCrossPlatformBriefJob({
+          requestId,
+          outputDir,
+          baseX,
+          baseY,
+          brief: crossPlatformBrief,
+          missingInputs: gaps.missingInputs,
+          clarificationQuestions: gaps.clarificationQuestions
+        })
+      ];
+    } else {
+      const selectedSpecs = crossPlatformBrief.platforms.map((id) => CROSS_PLATFORM_SPECS.find((spec) => spec.id === id)).filter(Boolean);
+      let x = baseX;
+      generationJobs = selectedSpecs.map((spec, index) => {
+        const size = sizeForAspectRatio(spec.aspectRatio, spec.longSide);
+        const job = {
+          jobId: `${requestId}_job_${index + 1}`,
+          aspectRatio: spec.aspectRatio,
+          outputDir,
+          outputName: `${requestId}_${spec.id}.png`,
+          title: spec.name,
+          placement: {
+            x,
+            y: baseY,
+            ...size
+          },
+          note: `${spec.note} ${spec.safeArea}`,
+          brief: crossPlatformBrief,
+          prompt: crossPlatformPrompt({
+            context,
+            skill,
+            userRequest,
+            brief: crossPlatformBrief,
+            spec
+          })
+        };
+        x += size.w + 80;
+        return job;
+      });
+    }
+  } else if (skillId === "product-marketing-set") {
+    if (!primary) throw new Error("\u8BF7\u5148\u9009\u4E2D\u4E00\u5F20\u56FE\u7247\u3002");
+    const productBrief = normalizeProductMarketingBrief(body);
+    const gaps = productMarketingBriefGaps(productBrief);
+    brief = productBrief;
+    missingInputs = gaps.missingInputs.length ? gaps.missingInputs : void 0;
+    clarificationQuestions = gaps.clarificationQuestions.length ? gaps.clarificationQuestions : void 0;
+    briefStatus = gaps.missingInputs.length ? "needs_input" : "ready_to_generate";
+    generationJobs = briefStatus === "needs_input" ? [
+      pendingProductBriefJob({
+        requestId,
+        outputDir,
+        baseX,
+        baseY,
+        brief: productBrief,
+        missingInputs: gaps.missingInputs,
+        clarificationQuestions: gaps.clarificationQuestions
+      })
+    ] : productMarketingJobs({
+      requestId,
+      context,
+      skill,
+      userRequest,
+      brief: productBrief,
+      outputDir,
+      baseX,
+      baseY
+    });
+  } else if (skillId === "logo-and-brand") {
+    const logoBrief = normalizeLogoBrandBrief(body);
+    const gaps = logoBrandBriefGaps(logoBrief);
+    brief = logoBrief;
+    missingInputs = gaps.missingInputs.length ? gaps.missingInputs : void 0;
+    clarificationQuestions = gaps.clarificationQuestions.length ? gaps.clarificationQuestions : void 0;
+    briefStatus = gaps.missingInputs.length ? "needs_input" : "ready_to_generate";
+    generationJobs = briefStatus === "needs_input" ? [
+      pendingLogoBrandBriefJob({
+        requestId,
+        outputDir,
+        baseX,
+        baseY,
+        brief: logoBrief,
+        missingInputs: gaps.missingInputs,
+        clarificationQuestions: gaps.clarificationQuestions
+      })
+    ] : logoBrandJobs({
+      requestId,
+      context,
+      skill,
+      userRequest,
+      brief: logoBrief,
+      outputDir,
+      baseX,
+      baseY
+    });
+  } else if (skillId === "marketing-brochure") {
+    const brochureBrief = normalizeMarketingBrochureBrief(body);
+    const gaps = marketingBrochureBriefGaps(brochureBrief);
+    brief = brochureBrief;
+    missingInputs = gaps.missingInputs.length ? gaps.missingInputs : void 0;
+    clarificationQuestions = gaps.clarificationQuestions.length ? gaps.clarificationQuestions : void 0;
+    briefStatus = gaps.missingInputs.length ? "needs_input" : "ready_to_generate";
+    generationJobs = briefStatus === "needs_input" ? [
+      pendingMarketingBrochureBriefJob({
+        requestId,
+        outputDir,
+        baseX,
+        baseY,
+        brief: brochureBrief,
+        missingInputs: gaps.missingInputs,
+        clarificationQuestions: gaps.clarificationQuestions
+      })
+    ] : marketingBrochureJobs({
+      requestId,
+      context,
+      skill,
+      userRequest,
+      brief: brochureBrief,
+      outputDir,
+      baseX,
+      baseY
+    });
+  } else {
+    throw new Error(`Unknown executable skill: ${skillId}`);
+  }
+  if (!generationJobs.length) throw new Error("\u8FD9\u4E2A Skill \u6CA1\u6709\u53EF\u6267\u884C\u7684\u751F\u6210\u4EFB\u52A1\u3002");
+  const generationJob = generationJobs[0];
+  const createdAt = nowIso();
+  const canAutoGenerate = ["logo-and-brand", "marketing-brochure"].includes(skillId) ? true : Boolean(inputImagePath);
+  const jobCount = generationJobs.length;
+  const skillRequest = {
+    requestId,
+    runId,
+    skillId,
+    skillName: skill.name,
+    status: canAutoGenerate ? "queued" : "needs_clarification",
+    briefStatus,
+    missingInputs,
+    clarificationQuestions,
+    canAutoGenerate,
+    source: "canvas_skill_button",
+    canvasId: session.canvasId,
+    targetShapeId: primary?.id,
+    inputImagePath,
+    inputAssetPath,
+    userRequest,
+    brief,
+    codexInstruction: canAutoGenerate ? briefStatus === "needs_input" ? [
+      `AI Canvas ${skill.name} Skill\uFF1A\u5F53\u524D\u662F\u5F85\u8865\u5145\u7B80\u62A5\uFF0C\u4E0D\u8981\u751F\u6210\u56FE\u7247\u3002`,
+      `\u8BF7\u5148\u6839\u636E clarificationQuestions \u5411\u7528\u6237\u8FFD\u95EE\uFF0C\u8865\u9F50 missingInputs\u3002`,
+      `\u7528\u6237\u56DE\u7B54\u540E\uFF0C\u628A\u539F brief \u4E0E\u7528\u6237\u7B54\u6848\u5408\u5E76\uFF0C\u518D\u8C03\u7528 submit_canvas_skill_request \u63D0\u4EA4\u65B0\u7684 ${skillId} \u8BF7\u6C42\u3002`
+    ].join(" ") : [
+      `AI Canvas ${skill.name} Skill\uFF1A\u8BF7\u57FA\u4E8E inputImagePath \u548C generationJobs \u751F\u6210 ${jobCount} \u5F20\u7ED3\u679C\u56FE\u3002`,
+      `\u9010\u4E2A\u5904\u7406 generationJobs\uFF1A\u6BCF\u4E2A job \u90FD\u7528 job.prompt \u4F5C\u4E3A\u751F\u6210/\u6539\u56FE\u6307\u4EE4\uFF1B\u82E5 inputImagePath \u5B58\u5728\u5219\u4F5C\u4E3A\u53C2\u8003\u56FE\uFF0C\u82E5\u4E0D\u5B58\u5728\u5219\u7EAF\u6587\u672C\u751F\u6210\uFF1B\u4FDD\u5B58\u5230 job.outputDir/job.outputName\u3002`,
+      `\u6BCF\u5F20\u56FE\u751F\u6210\u540E\uFF1A\u5982\u679C targetShapeId \u5B58\u5728\uFF0C\u8C03\u7528 create_image_version\uFF1B\u5982\u679C targetShapeId \u4E0D\u5B58\u5728\uFF0C\u8C03\u7528 import_image_asset \u5E76\u4F7F\u7528 placement="absolute" \u4EE5\u53CA job.placement.x/y/w/h\u3002`,
+      `\u4E0D\u8981\u53E6\u5916\u521B\u5EFA\u753B\u5E03\u6587\u5B57\u5C42\uFF1B\u5C0F\u7EA2\u4E66\u3001YouTube\u3001\u8DE8\u5E73\u53F0\u9002\u914D\u3001\u4EA7\u54C1\u8425\u9500\u56FE\u3001Logo/\u54C1\u724C\u7CFB\u7EDF\u548C\u8425\u9500\u5BA3\u4F20\u518C\u4E2D\u7684\u6807\u9898\u3001\u5B57\u4F53\u3001\u914D\u8272\u3001\u5E73\u53F0\u5B89\u5168\u6784\u56FE\u548C\u88C5\u9970\u5FC5\u987B\u76F4\u63A5\u751F\u6210\u5728\u6210\u54C1\u56FE\u7247\u91CC\u3002`,
+      `\u6700\u540E\u8C03\u7528 save_snapshot\uFF0C\u5E76\u7528 update_skill_request \u6807\u8BB0 completed\uFF0Cresult \u91CC\u5199\u5165\u6BCF\u4E2A job \u7684\u8F93\u51FA\u8DEF\u5F84\u548C\u65B0 shape id\u3002`
+    ].filter(Boolean).join(" ") : "\u5F53\u524D\u9009\u4E2D\u56FE\u7247\u6CA1\u6709\u53EF\u8BFB\u53D6\u7684\u672C\u5730\u6587\u4EF6\u6216\u56FE\u7247\u6570\u636E\u3002\u8BF7\u63D0\u793A\u7528\u6237\u7528\u9876\u90E8\u300C\u5BFC\u5165\u56FE\u7247\u300D\u3001\u62D6\u62FD\u6216\u7C98\u8D34\u91CD\u65B0\u5BFC\u5165\u540E\u518D\u63D0\u4EA4 Skill\u3002",
+    generationJob,
+    generationJobs,
+    attempts: 0,
+    createdAt,
+    updatedAt: createdAt
+  };
+  await writeSkillRequest(skillRequest);
+  await writeRun({
+    runId,
+    type: "skill_run",
+    model: "external",
+    input: {
+      skillId,
+      userRequest,
+      brief,
+      briefStatus,
+      missingInputs,
+      clarificationQuestions,
+      targetShapeId: primary?.id,
+      canAutoGenerate,
+      inputAssetPath,
+      jobCount
+    },
+    prompt: generationJob.prompt,
+    output: {
+      requestId,
+      status: skillRequest.status,
+      outputNames: generationJobs.map((job) => job.outputName),
+      overlayActionCount: 0
+    }
+  });
+  await persistSession();
+  return skillRequest;
+}
 function editRequestPath(requestId) {
   if (!session) throw new Error("Canvas session is not open");
   const safeId = requestId.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -31191,6 +33484,32 @@ async function editRequestQueueStatus() {
     latestRequest: requests.at(-1),
     updatedAt: nowIso()
   };
+}
+function skillRequestPath(requestId) {
+  if (!session) throw new Error("Canvas session is not open");
+  const safeId = requestId.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const targetPath = path.join(session.storagePath, "requests", `${safeId}.json`);
+  ensureInside(session.storagePath, targetPath);
+  return targetPath;
+}
+async function writeSkillRequest(request) {
+  request.updatedAt = nowIso();
+  await writeJson(skillRequestPath(request.requestId), request);
+  if (!session) throw new Error("Canvas session is not open");
+  await writeJson(path.join(session.storagePath, "requests", "pending_skill.json"), request);
+  return request;
+}
+async function readSkillRequest(requestId) {
+  return readJson(skillRequestPath(requestId));
+}
+async function listSkillRequests(status) {
+  if (!session) throw new Error("Canvas session is not open");
+  const requestDir = path.join(session.storagePath, "requests");
+  const names = await readdir(requestDir);
+  const requests = (await Promise.all(
+    names.filter((name) => name.startsWith("skill_") && name.endsWith(".json")).map((name) => readJson(path.join(requestDir, name)))
+  )).filter(Boolean);
+  return requests.filter((request) => status ? request.status === status : true).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 async function start() {
   const args = parseArgs(process.argv.slice(2));
@@ -31236,6 +33555,198 @@ async function start() {
   app.get("/api/canvas/selection", (_request, response, next) => {
     try {
       response.json(statePayload().selection);
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/import-file", async (request, response, next) => {
+    try {
+      if (!session) throw new Error("Canvas session is not open");
+      const body = isRecord(request.body) ? request.body : {};
+      const inputPath = String(body.inputPath ?? "");
+      if (!inputPath) throw new Error("inputPath is required.");
+      const file = await readImportFile(inputPath);
+      const result = await importCanvasImage({
+        buffer: file.buffer,
+        source: body.source ?? "upload",
+        originalName: body.title ? String(body.title) : file.originalName,
+        inputPath: file.absolutePath,
+        payload: body
+      });
+      response.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/import-url", async (request, response, next) => {
+    try {
+      if (!session) throw new Error("Canvas session is not open");
+      const body = isRecord(request.body) ? request.body : {};
+      const rawUrl = String(body.url ?? "");
+      if (!rawUrl) throw new Error("url is required.");
+      const fetched = await fetchImportUrl(rawUrl);
+      const result = await importCanvasImage({
+        buffer: fetched.buffer,
+        source: "url",
+        originalName: body.title ? String(body.title) : fetched.originalName,
+        originalUrl: fetched.url,
+        payload: { ...body, source: "url" }
+      });
+      response.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/import-data-url", async (request, response, next) => {
+    try {
+      if (!session) throw new Error("Canvas session is not open");
+      const body = isRecord(request.body) ? request.body : {};
+      const dataUrl = String(body.dataUrl ?? "");
+      if (!dataUrl) throw new Error("dataUrl is required.");
+      const parsed = parseDataUrl(dataUrl);
+      const result = await importCanvasImage({
+        buffer: parsed.buffer,
+        source: body.source ?? "paste",
+        originalName: body.title ? String(body.title) : `canvas-${body.source ?? "paste"}`,
+        payload: body
+      });
+      response.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/actions", async (request, response, next) => {
+    try {
+      const body = isRecord(request.body) ? request.body : {};
+      const actions = Array.isArray(body.actions) ? body.actions : [];
+      if (!actions.length) throw new Error("actions are required.");
+      response.json(await applyCanvasActions(actions));
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.get("/api/canvas/skills", (request, response, next) => {
+    try {
+      const category = request.query.category ? String(request.query.category) : void 0;
+      response.json({
+        skills: category ? builtinSkills.filter((skill) => skill.category === category) : builtinSkills
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/skills/recommend", (request, response, next) => {
+    try {
+      const body = isRecord(request.body) ? request.body : {};
+      response.json(
+        recommendSkills({
+          userRequest: body.userRequest ? String(body.userRequest) : void 0,
+          maxResults: Number(body.maxResults ?? 5)
+        })
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/skills/prepare-run", async (request, response, next) => {
+    try {
+      const body = isRecord(request.body) ? request.body : {};
+      response.json(await prepareSkillRun(body));
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/skills/run", async (request, response, next) => {
+    try {
+      const body = isRecord(request.body) ? request.body : {};
+      const runId = String(body.runId ?? "");
+      if (!runId) throw new Error("runId is required.");
+      const run = await runSkillRun(runId);
+      response.json({
+        ...run,
+        message: run.outputs?.message
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.get("/api/canvas/skill-runs/:runId", async (request, response, next) => {
+    try {
+      const run = await readSkillRun(request.params.runId);
+      if (!run) {
+        response.status(404).json({ ok: false, error: "Skill run not found" });
+        return;
+      }
+      response.json(run);
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/skill-request", async (request, response, next) => {
+    try {
+      const body = isRecord(request.body) ? request.body : {};
+      const skillRequest = await submitSkillRequest(body);
+      response.json({
+        ...skillRequest,
+        message: skillRequest.status === "queued" ? skillRequest.briefStatus === "needs_input" ? `${skillRequest.skillName} \u7B80\u62A5\u5DF2\u63D0\u4EA4\u7ED9 Codex\uFF0C\u9700\u8981\u5148\u8865\u5145\u9700\u6C42\u3002` : `${skillRequest.skillName} \u4EFB\u52A1\u5DF2\u63D0\u4EA4\u7ED9 Codex\u3002` : "\u5F53\u524D\u56FE\u7247\u6570\u636E\u65E0\u6CD5\u8BFB\u53D6\uFF0C\u8BF7\u91CD\u65B0\u5BFC\u5165\u56FE\u7247\u540E\u518D\u63D0\u4EA4\u3002"
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/skill-requests/next", async (request, response, next) => {
+    try {
+      if (!session) throw new Error("Canvas session is not open");
+      touchCodexListener();
+      const includeCompleted = request.body?.includeCompleted === true;
+      const queued = await listSkillRequests("queued");
+      let skillRequest = queued[0] ?? (includeCompleted ? (await listSkillRequests()).find((item) => item.status !== "processing") : void 0);
+      if (skillRequest && request.body?.claim !== false && skillRequest.status === "queued") {
+        skillRequest = await writeSkillRequest({
+          ...skillRequest,
+          status: "processing",
+          attempts: skillRequest.attempts + 1,
+          claimedAt: nowIso()
+        });
+      }
+      response.json({
+        request: skillRequest,
+        timedOut: false,
+        message: skillRequest ? "Skill request ready." : "No queued Skill request."
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.get("/api/canvas/skill-requests/:requestId", async (request, response, next) => {
+    try {
+      const skillRequest = await readSkillRequest(request.params.requestId);
+      if (!skillRequest) {
+        response.status(404).json({ ok: false, error: "Skill request not found" });
+        return;
+      }
+      response.json(skillRequest);
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.post("/api/canvas/skill-requests/:requestId/status", async (request, response, next) => {
+    try {
+      touchCodexListener();
+      const skillRequest = await readSkillRequest(request.params.requestId);
+      if (!skillRequest) {
+        response.status(404).json({ ok: false, error: "Skill request not found" });
+        return;
+      }
+      const status = String(request.body?.status ?? skillRequest.status);
+      const nextRequest = await writeSkillRequest({
+        ...skillRequest,
+        status,
+        error: request.body?.error ? String(request.body.error) : skillRequest.error,
+        result: request.body?.result && typeof request.body.result === "object" ? request.body.result : skillRequest.result,
+        completedAt: status === "completed" || status === "failed" || status === "needs_clarification" ? nowIso() : skillRequest.completedAt
+      });
+      response.json(nextRequest);
     } catch (error) {
       next(error);
     }
@@ -31291,7 +33802,12 @@ async function start() {
         model: "external",
         input: {
           sourceShapeId: request.body.sourceShapeId,
-          imagePath: request.body.imagePath
+          imagePath: request.body.imagePath,
+          x: request.body.x,
+          y: request.body.y,
+          w: request.body.w,
+          h: request.body.h,
+          title: request.body.title
         },
         output: result
       });
@@ -31467,6 +33983,7 @@ async function start() {
   });
   wss.on("connection", (socket) => {
     clients.add(socket);
+    activeClient = socket;
     socket.send(JSON.stringify({ type: "server:state", payload: session ? statePayload() : null }));
     socket.on("message", async (raw) => {
       try {
@@ -31492,6 +34009,9 @@ async function start() {
     });
     socket.on("close", () => {
       clients.delete(socket);
+      if (activeClient === socket) {
+        activeClient = [...clients].filter((client) => client.readyState === import_websocket.default.OPEN).at(-1);
+      }
     });
   });
   if (process.env.NODE_ENV === "production" && await exists(clientIndex)) {

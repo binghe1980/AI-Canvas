@@ -1,4 +1,9 @@
-export type AiCanvasRole = 'image_holder' | 'ai_image' | 'annotation_text' | 'annotation_arrow' | 'annotation_mark' | 'version_group';
+export type AiCanvasRole = 'image_holder' | 'ai_image' | 'artboard' | 'annotation_text' | 'annotation_arrow' | 'annotation_mark' | 'version_group';
+export type CanvasImageSource = 'codex_generation' | 'upload' | 'drag_drop' | 'paste' | 'url' | 'external_provider';
+export type CanvasSkillCategory = 'social_media' | 'e_commerce' | 'branding' | 'marketing' | 'studio';
+export type CanvasSkillEntrypoint = 'canvas_selection' | 'chat_skill_panel' | 'natural_language';
+export type CanvasSkillCapability = 'image_generation' | 'image_editing' | 'text_generation' | 'layout' | 'background_removal' | 'upscale' | 'artboard_generation';
+export type CanvasSkillRunStatus = 'queued' | 'planning' | 'requires_external_generation' | 'running' | 'applying_actions' | 'completed' | 'failed' | 'needs_clarification';
 export interface Bounds {
     x: number;
     y: number;
@@ -24,9 +29,14 @@ export interface AiCanvasShapeMeta {
     acceptsGeneratedImage?: boolean;
     holderId?: string;
     sourceRunId?: string;
+    skillRunId?: string;
     version?: number;
     parentShapeId?: string;
     assetPath?: string;
+    assetUrl?: string;
+    imageSource?: CanvasImageSource;
+    importId?: string;
+    usableAsSkillInput?: boolean;
     title?: string;
 }
 export interface ShapeSummary {
@@ -142,7 +152,41 @@ export interface EditRequestQueueStatus {
     latestRequest?: CanvasEditRequest;
     updatedAt: string;
 }
-export type RunType = 'generate' | 'edit_from_annotations' | 'insert_image_into_holder' | 'create_image_version' | 'failed';
+export interface CanvasSkillRequest {
+    requestId: string;
+    runId: string;
+    skillId: string;
+    skillName: string;
+    status: EditRequestStatus;
+    briefStatus?: 'ready_to_generate' | 'needs_input';
+    missingInputs?: string[];
+    clarificationQuestions?: string[];
+    canAutoGenerate: boolean;
+    source: 'canvas_skill_button' | 'codex';
+    canvasId: string;
+    targetShapeId?: string;
+    inputImagePath?: string;
+    inputAssetPath?: string;
+    userRequest?: string;
+    brief?: Record<string, unknown>;
+    codexInstruction: string;
+    generationJob: CanvasGenerationJob;
+    generationJobs?: CanvasGenerationJob[];
+    overlayActions?: CanvasAction[];
+    attempts: number;
+    createdAt: string;
+    updatedAt: string;
+    claimedAt?: string;
+    completedAt?: string;
+    result?: Record<string, unknown>;
+    error?: string;
+}
+export interface SkillRequestPollResult {
+    request?: CanvasSkillRequest;
+    timedOut: boolean;
+    message: string;
+}
+export type RunType = 'generate' | 'import_image' | 'edit_from_annotations' | 'insert_image_into_holder' | 'create_image_version' | 'skill_run' | 'apply_canvas_actions' | 'failed';
 export interface RunRecord {
     runId: string;
     type: RunType;
@@ -154,7 +198,7 @@ export interface RunRecord {
     error?: string;
     createdAt: string;
 }
-export type CanvasPendingOperationType = 'create_image_holder' | 'insert_image_into_holder' | 'create_image_version';
+export type CanvasPendingOperationType = 'create_image_holder' | 'import_image' | 'insert_image_into_holder' | 'create_image_version' | 'apply_canvas_actions';
 export interface CanvasPendingOperation {
     id: string;
     type: CanvasPendingOperationType;
@@ -177,5 +221,117 @@ export interface CanvasStatePayload {
     selection: SelectionSnapshot;
     shapes: ShapeSummary[];
     pendingOperations?: CanvasPendingOperation[];
+}
+export interface CanvasImageImport {
+    importId: string;
+    canvasId: string;
+    source: CanvasImageSource;
+    originalName?: string;
+    originalUrl?: string;
+    inputPath?: string;
+    assetPath: string;
+    assetUrl: string;
+    width: number;
+    height: number;
+    mimeType?: string;
+    createdShapeId?: string;
+    createdAt: string;
+}
+export interface CanvasContext {
+    canvasId: string;
+    pageId: string;
+    storagePath: string;
+    selection: {
+        selectedShapeIds: string[];
+        primaryShape?: ShapeSummary;
+        shapes: ShapeSummary[];
+    };
+    nearby: {
+        texts: ShapeSummary[];
+        images: ShapeSummary[];
+        artboards: ShapeSummary[];
+    };
+    project: {
+        brandName?: string;
+        brandColors?: string[];
+        preferredStyles?: string[];
+        recentSkillRuns?: string[];
+    };
+}
+export interface CanvasSkillManifest {
+    id: string;
+    name: string;
+    category: CanvasSkillCategory;
+    description: string;
+    icon?: string;
+    entrypoints: CanvasSkillEntrypoint[];
+    inputRequirements: {
+        requiresSelection?: boolean;
+        acceptedRoles?: AiCanvasRole[];
+        acceptedShapeTypes?: string[];
+        minSelectionCount?: number;
+        maxSelectionCount?: number;
+        optionalTextPrompt?: boolean;
+        requiredFields?: string[];
+    };
+    defaults: Record<string, unknown>;
+    outputs: string[];
+    capabilities: CanvasSkillCapability[];
+    priority?: number;
+    disabled?: boolean;
+    disabledReason?: string;
+}
+export interface SkillRecommendation {
+    skillId: string;
+    name: string;
+    category: CanvasSkillCategory;
+    reason: string;
+    confidence: number;
+    missingInputs?: string[];
+    disabledReason?: string;
+}
+export interface CanvasGenerationJob {
+    jobId: string;
+    prompt: string;
+    aspectRatio: string;
+    outputName: string;
+    outputDir: string;
+    placement: {
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+    };
+    title: string;
+    note?: string;
+    brief?: Record<string, unknown>;
+}
+export interface CanvasSkillRun {
+    runId: string;
+    skillId: string;
+    status: CanvasSkillRunStatus;
+    canvasId: string;
+    input: Record<string, unknown>;
+    context: CanvasContext;
+    generationJobs?: CanvasGenerationJob[];
+    actions?: CanvasAction[];
+    outputs?: Record<string, unknown>;
+    error?: string;
+    createdAt: string;
+    updatedAt: string;
+    completedAt?: string;
+}
+export type CanvasActionType = 'import_image' | 'create_artboard' | 'place_image' | 'place_text' | 'place_note' | 'create_group' | 'create_version' | 'save_snapshot';
+export interface CanvasAction {
+    id: string;
+    type: CanvasActionType;
+    payload: Record<string, unknown>;
+}
+export interface CanvasActionApplyResult {
+    applied: boolean;
+    actionCount: number;
+    results: unknown[];
+    failedActionId?: string;
+    error?: string;
 }
 //# sourceMappingURL=types.d.ts.map

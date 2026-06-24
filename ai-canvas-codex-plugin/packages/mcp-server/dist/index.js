@@ -11106,6 +11106,42 @@ var boundsSchema = external_exports.object({
   w: external_exports.number().positive(),
   h: external_exports.number().positive()
 });
+var canvasImageSourceSchema = external_exports.enum([
+  "codex_generation",
+  "upload",
+  "drag_drop",
+  "paste",
+  "url",
+  "external_provider"
+]);
+var canvasSkillCategorySchema = external_exports.enum([
+  "social_media",
+  "e_commerce",
+  "branding",
+  "marketing",
+  "studio"
+]);
+var canvasActionSchema = external_exports.object({
+  id: external_exports.string(),
+  type: external_exports.enum([
+    "import_image",
+    "create_artboard",
+    "place_image",
+    "place_text",
+    "place_note",
+    "create_group",
+    "create_version",
+    "save_snapshot"
+  ]),
+  payload: external_exports.record(external_exports.unknown()).default({})
+});
+var editRequestStatusSchema = external_exports.enum([
+  "queued",
+  "processing",
+  "completed",
+  "failed",
+  "needs_clarification"
+]);
 var openCanvasInputSchema = external_exports.object({
   workspaceRoot: external_exports.string().optional(),
   canvasId: external_exports.string().optional(),
@@ -11125,6 +11161,27 @@ var insertImageIntoHolderInputSchema = external_exports.object({
   mode: external_exports.enum(["contain", "cover"]).default("contain"),
   title: external_exports.string().default("AI \u56FE\u7247")
 });
+var importImageAssetInputSchema = openCanvasInputSchema.extend({
+  inputPath: external_exports.string(),
+  source: canvasImageSourceSchema.default("upload"),
+  title: external_exports.string().default("\u5916\u90E8\u5BFC\u5165\u56FE\u7247"),
+  placement: external_exports.enum(["viewport_center", "selection_right", "absolute"]).default("selection_right"),
+  x: external_exports.number().optional(),
+  y: external_exports.number().optional(),
+  w: external_exports.number().positive().optional(),
+  h: external_exports.number().positive().optional(),
+  selectAfterCreate: external_exports.boolean().default(true)
+});
+var importImageFromUrlInputSchema = openCanvasInputSchema.extend({
+  url: external_exports.string().url(),
+  title: external_exports.string().default("URL \u5BFC\u5165\u56FE\u7247"),
+  placement: external_exports.enum(["viewport_center", "selection_right", "absolute"]).default("selection_right"),
+  x: external_exports.number().optional(),
+  y: external_exports.number().optional(),
+  w: external_exports.number().positive().optional(),
+  h: external_exports.number().positive().optional(),
+  selectAfterCreate: external_exports.boolean().default(true)
+});
 var collectAnnotationsInputSchema = external_exports.object({
   targetShapeId: external_exports.string().optional(),
   radius: external_exports.number().positive().default(300),
@@ -11135,7 +11192,56 @@ var createImageVersionInputSchema = external_exports.object({
   imagePath: external_exports.string(),
   placement: external_exports.enum(["right", "replace"]).default("right"),
   title: external_exports.string().default("AI \u56FE\u7247 v2"),
-  runId: external_exports.string().optional()
+  runId: external_exports.string().optional(),
+  skillRunId: external_exports.string().optional(),
+  x: external_exports.number().optional(),
+  y: external_exports.number().optional(),
+  w: external_exports.number().positive().optional(),
+  h: external_exports.number().positive().optional()
+});
+var applyCanvasActionsInputSchema = openCanvasInputSchema.extend({
+  actions: external_exports.array(canvasActionSchema)
+});
+var listCanvasSkillsInputSchema = external_exports.object({
+  category: canvasSkillCategorySchema.optional()
+});
+var recommendCanvasSkillsInputSchema = openCanvasInputSchema.extend({
+  userRequest: external_exports.string().optional(),
+  maxResults: external_exports.number().int().positive().max(10).default(5)
+});
+var prepareSkillRunInputSchema = openCanvasInputSchema.extend({
+  skillId: external_exports.string(),
+  userRequest: external_exports.string().optional(),
+  selectionMode: external_exports.enum(["current"]).default("current")
+});
+var runCanvasSkillInputSchema = openCanvasInputSchema.extend({
+  runId: external_exports.string(),
+  overrides: external_exports.record(external_exports.unknown()).optional()
+});
+var getSkillRunInputSchema = external_exports.object({
+  runId: external_exports.string()
+});
+var submitSkillRequestInputSchema = openCanvasInputSchema.extend({
+  skillId: external_exports.string(),
+  userRequest: external_exports.string().optional(),
+  brief: external_exports.record(external_exports.unknown()).optional(),
+  inputDataUrl: external_exports.string().optional(),
+  inputTitle: external_exports.string().optional(),
+  selectionMode: external_exports.enum(["current"]).default("current")
+});
+var watchSkillRequestsInputSchema = openCanvasInputSchema.extend({
+  waitMs: external_exports.number().int().min(0).max(55e3).default(3e4),
+  claim: external_exports.boolean().default(true),
+  includeCompleted: external_exports.boolean().default(false)
+});
+var getSkillRequestInputSchema = external_exports.object({
+  requestId: external_exports.string()
+});
+var updateSkillRequestInputSchema = external_exports.object({
+  requestId: external_exports.string(),
+  status: editRequestStatusSchema,
+  error: external_exports.string().optional(),
+  result: external_exports.record(external_exports.unknown()).optional()
 });
 var prepareImageGenerationInputSchema = openCanvasInputSchema.extend({
   request: external_exports.string().describe("The user natural-language image request."),
@@ -11153,13 +11259,6 @@ var prepareAnnotationEditInputSchema = openCanvasInputSchema.extend({
   radius: external_exports.number().positive().default(300),
   includeScreenshot: external_exports.boolean().default(true)
 });
-var editRequestStatusSchema = external_exports.enum([
-  "queued",
-  "processing",
-  "completed",
-  "failed",
-  "needs_clarification"
-]);
 var watchEditRequestsInputSchema = openCanvasInputSchema.extend({
   waitMs: external_exports.number().int().min(0).max(55e3).default(3e4),
   claim: external_exports.boolean().default(true),
@@ -21753,6 +21852,37 @@ server.registerTool(
   }
 );
 server.registerTool(
+  "import_image_asset",
+  {
+    title: "Import Image Asset",
+    description: "Import a local image file into AI Canvas as a selectable image that can be used by canvas Skills.",
+    inputSchema: importImageAssetInputSchema
+  },
+  async (input) => {
+    const parsed = importImageAssetInputSchema.parse(input);
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed);
+    }
+    const inputPath = await assertReadableFile(parsed.inputPath);
+    return asToolResult(await postJson("/api/canvas/import-file", { ...parsed, inputPath }));
+  }
+);
+server.registerTool(
+  "import_image_from_url",
+  {
+    title: "Import Image From URL",
+    description: "Download a supported image URL and import it into AI Canvas as a selectable image.",
+    inputSchema: importImageFromUrlInputSchema
+  },
+  async (input) => {
+    const parsed = importImageFromUrlInputSchema.parse(input);
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed);
+    }
+    return asToolResult(await postJson("/api/canvas/import-url", parsed));
+  }
+);
+server.registerTool(
   "collect_annotations",
   {
     title: "Collect Canvas Annotations",
@@ -21882,6 +22012,167 @@ server.registerTool(
         parsed
       )
     );
+  }
+);
+server.registerTool(
+  "submit_canvas_skill_request",
+  {
+    title: "Submit Canvas Skill Request",
+    description: "Submit a canvas Skill request. Supports xiaohongshu-cover, youtube-thumbnail, cross-platform-adapt, product-marketing-set, logo-and-brand, and marketing-brochure.",
+    inputSchema: submitSkillRequestInputSchema
+  },
+  async (input) => {
+    const parsed = submitSkillRequestInputSchema.parse(input);
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed);
+    }
+    return asToolResult(await postJson("/api/canvas/skill-request", parsed));
+  }
+);
+server.registerTool(
+  "watch_skill_requests",
+  {
+    title: "Watch AI Canvas Skill Requests",
+    description: "Wait for a queued AI Canvas Skill request submitted from the canvas Skill panel and process its generationJobs sequentially.",
+    inputSchema: watchSkillRequestsInputSchema
+  },
+  async (input) => {
+    const parsed = watchSkillRequestsInputSchema.parse(input);
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed);
+    }
+    const deadline = Date.now() + parsed.waitMs;
+    let pollResult;
+    do {
+      pollResult = await postJson("/api/canvas/skill-requests/next", {
+        claim: parsed.claim,
+        includeCompleted: parsed.includeCompleted
+      });
+      if (pollResult.request) return asToolResult(pollResult);
+      if (Date.now() >= deadline) break;
+      await sleep(Math.min(1e3, Math.max(250, deadline - Date.now())));
+    } while (Date.now() < deadline);
+    return asToolResult({
+      request: void 0,
+      timedOut: true,
+      message: "No queued AI Canvas Skill request yet. Codex is waiting for the user to select an image, choose a Skill, and submit it from the canvas Skill panel."
+    });
+  }
+);
+server.registerTool(
+  "get_skill_request",
+  {
+    title: "Get AI Canvas Skill Request",
+    description: "Read one queued, processing, completed, failed, or clarification AI Canvas Skill request by id.",
+    inputSchema: getSkillRequestInputSchema
+  },
+  async (input) => {
+    const parsed = getSkillRequestInputSchema.parse(input);
+    return asToolResult(
+      await fetchJson(`/api/canvas/skill-requests/${encodeURIComponent(parsed.requestId)}`)
+    );
+  }
+);
+server.registerTool(
+  "update_skill_request",
+  {
+    title: "Update AI Canvas Skill Request",
+    description: "Mark an AI Canvas Skill request as completed, failed, processing, queued, or needing clarification.",
+    inputSchema: updateSkillRequestInputSchema
+  },
+  async (input) => {
+    const parsed = updateSkillRequestInputSchema.parse(input);
+    return asToolResult(
+      await postJson(
+        `/api/canvas/skill-requests/${encodeURIComponent(parsed.requestId)}/status`,
+        parsed
+      )
+    );
+  }
+);
+server.registerTool(
+  "list_canvas_skills",
+  {
+    title: "List Canvas Skills",
+    description: "List built-in AI Canvas Skills grouped by category.",
+    inputSchema: listCanvasSkillsInputSchema
+  },
+  async (input) => {
+    const parsed = listCanvasSkillsInputSchema.parse(input);
+    const suffix = parsed.category ? `?category=${encodeURIComponent(parsed.category)}` : "";
+    return asToolResult(await fetchJson(`/api/canvas/skills${suffix}`));
+  }
+);
+server.registerTool(
+  "recommend_canvas_skills",
+  {
+    title: "Recommend Canvas Skills",
+    description: "Recommend AI Canvas Skills based on the current selection and optional user request.",
+    inputSchema: recommendCanvasSkillsInputSchema
+  },
+  async (input) => {
+    const parsed = recommendCanvasSkillsInputSchema.parse(input);
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed);
+    }
+    return asToolResult(await postJson("/api/canvas/skills/recommend", parsed));
+  }
+);
+server.registerTool(
+  "prepare_skill_run",
+  {
+    title: "Prepare Canvas Skill Run",
+    description: "Create a lightweight run plan for an AI Canvas Skill using current canvas context.",
+    inputSchema: prepareSkillRunInputSchema
+  },
+  async (input) => {
+    const parsed = prepareSkillRunInputSchema.parse(input);
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed);
+    }
+    return asToolResult(await postJson("/api/canvas/skills/prepare-run", parsed));
+  }
+);
+server.registerTool(
+  "run_canvas_skill",
+  {
+    title: "Run Canvas Skill",
+    description: "Run a prepared AI Canvas Skill and return external generation jobs plus placement plans for Codex to process.",
+    inputSchema: runCanvasSkillInputSchema
+  },
+  async (input) => {
+    const parsed = runCanvasSkillInputSchema.parse(input);
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed);
+    }
+    return asToolResult(await postJson("/api/canvas/skills/run", parsed));
+  }
+);
+server.registerTool(
+  "get_skill_run",
+  {
+    title: "Get Canvas Skill Run",
+    description: "Read a previously prepared or run AI Canvas Skill run by id.",
+    inputSchema: getSkillRunInputSchema
+  },
+  async (input) => {
+    const parsed = getSkillRunInputSchema.parse(input);
+    return asToolResult(await fetchJson(`/api/canvas/skill-runs/${encodeURIComponent(parsed.runId)}`));
+  }
+);
+server.registerTool(
+  "apply_canvas_actions",
+  {
+    title: "Apply Canvas Actions",
+    description: "Apply a batch of normalized Canvas Actions to the current AI Canvas.",
+    inputSchema: applyCanvasActionsInputSchema
+  },
+  async (input) => {
+    const parsed = applyCanvasActionsInputSchema.parse(input);
+    if (parsed.workspaceRoot || parsed.canvasId || parsed.port) {
+      await openCanvas(parsed);
+    }
+    return asToolResult(await postJson("/api/canvas/actions", parsed));
   }
 );
 server.registerTool(
